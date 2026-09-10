@@ -15,7 +15,10 @@ export const REGIONS: Region[] = [
       { id: 'garden', name: '茶园', npcIds: ['axiu'], accent: '#c2d6a0', blurb: '阿秀守着这片开面采的茶青。' },
       { id: 'workshop', name: '制茶坊', npcIds: ['yanbo'], accent: '#cdb48a', blurb: '岩伯看火的地方，也是你认识制茶工序的门槛。真要做茶，从茶园选茶那头进。' },
       { id: 'teatable', name: '茶桌', npcIds: ['zhoubo'], accent: '#c9b79c', blurb: '周伯的盖碗。自己做的茶，在这里见真章。' },
-      { id: 'mothertree', name: '九龙窠母树', npcIds: ['yanbo'], accent: '#bb8a7a', blurb: '看得到、喝不到的活标本。', locked: false },
+      // 九龙窠解锁条件：玩家亲手完成过一次武夷山制茶流程（player.flags.tea_made）。
+      // 不放任为「随时可进」——否则仅完成老陈对话就会提前解锁，违背「做完茶才进九龙窠」的产品逻辑。
+      // 具体门禁在 MapView 中按 tea_made 判断；此处 locked 仅作数据默认态，不影响判断。
+      { id: 'mothertree', name: '九龙窠母树', npcIds: ['yanbo'], accent: '#bb8a7a', blurb: '做完一锅茶，周伯会跟你提起这地方。', locked: true },
       { id: 'market', name: '茶集市', npcIds: ['xiaoman'], accent: '#c8b27a', blurb: '买卖茶与茶具的地方。', locked: true },
     ],
   },

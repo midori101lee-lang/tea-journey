@@ -5,6 +5,7 @@ import { NpcStage } from '../components/NpcStage';
 import BackButton from '../components/BackButton';
 import OpeningScene from '../components/OpeningScene';
 import MapView from '../features/world/MapView';
+import TeaWorldView from '../features/world/TeaWorldView';
 import TeaSelect from '../features/making/TeaSelect';
 import MakingFlow from '../features/making/MakingFlow';
 import ResultView from '../features/result/ResultView';
@@ -19,7 +20,7 @@ import EncounterLayer from '../features/encounter/EncounterLayer';
 
 /** Web 版：武夷山第一日完整游历（茶馆→茶园→制茶→结果→泡茶→母树→线索→手账） */
 export default function WebApp() {
-  const { scene, activeEncounter, go, player, startMaking, finishBrewing, setFlag, lastResult, difficulty } = useGame();
+  const { scene, activeEncounter, go, player, startMaking, finishBrewing, setFlag, lastResult, difficulty, drinkNotice } = useGame();
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   // 茶桌：用茶篓里已有的茶泡一壶（库存 → 泡茶入口）
   const [brewPickerOpen, setBrewPickerOpen] = useState(false);
@@ -40,6 +41,8 @@ export default function WebApp() {
       </div>
     );
   }
+
+  if (scene === 'teaworld') return <div className="scene"><TeaWorldView /></div>;
 
   if (scene === 'map') return <div className="scene"><MapView /></div>;
 
@@ -130,6 +133,11 @@ export default function WebApp() {
             <p className="hint">「茶做完了。」周伯抬眼望了望窗外，「山还没逛完——有个地方你该去看看。九龙窠的那几株老茶树，大红袍的故事，就从那儿起。」</p>
             <button className="btn btn-primary" onClick={() => go('mothertree')}>去九龙窠</button>
             <button className="btn" onClick={() => go('journal')}>看茶游记</button>
+          </div>
+        )}
+        {drinkNotice && (
+          <div className="scene-foot">
+            <p className="hint">🍵 {drinkNotice}</p>
           </div>
         )}
         <div className="scene-foot">

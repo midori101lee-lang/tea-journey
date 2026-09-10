@@ -18,7 +18,12 @@ export default function MapView() {
       <div style={{ display: 'grid', gap: 12 }}>
         {order.map((id) => {
           const loc = region.locations.find((l) => l.id === id)!;
-          const locked = loc.id === 'market' ? !isMarketUnlocked(player) : !!loc.locked;
+          // 茶集市：集齐三种亲手制茶才开市；九龙窠：完成一次制茶（tea_made）才解锁。
+          // 二者都以 flag 驱动，不靠熟练度 / 随机 / 老陈普通对话提前开门。
+          const locked =
+            loc.id === 'market' ? !isMarketUnlocked(player)
+            : loc.id === 'mothertree' ? !player.flags['tea_made']
+            : !!loc.locked;
           return (
             <button
               key={id}
@@ -28,7 +33,11 @@ export default function MapView() {
               style={{ borderLeft: `6px solid ${loc.accent}`, opacity: locked ? 0.55 : 1 }}
             >
               <div className="h-serif" style={{ fontSize: 18 }}>{locked ? '🔒 ' : ''}{loc.name}</div>
-              <div className="hint">{locked && loc.id === 'market' ? '三种茶都亲手做过，才会开市。' : loc.blurb}</div>
+              <div className="hint">
+                {locked && loc.id === 'market' ? '三种茶都亲手做过，才会开市。'
+                  : locked && loc.id === 'mothertree' ? '做完一锅武夷山茶，再来这儿。'
+                  : loc.blurb}
+              </div>
             </button>
           );
         })}
@@ -41,6 +50,7 @@ export default function MapView() {
         title={mountainFull ? '今天山路已经逛够了，回茶馆歇一晚再来。' : ''}
       >🚶 去山路上逛逛{mountainFull ? '（今天逛够啦）' : `（今天还能去 ${mountainLeft} 回）`}</button>
       <button className="btn" style={{ marginTop: 10 }} onClick={() => go('journal')}>📚 我的茶游记</button>
+      <button className="btn" style={{ marginTop: 10 }} onClick={() => go('teaworld')}>🌍 回到茶世界</button>
       <button
         className="btn"
         style={{ marginTop: 10 }}

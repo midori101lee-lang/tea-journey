@@ -82,7 +82,11 @@ export default function OpeningScene() {
   function finish() {
     setFlags({ met_laochen: true, first_tea_offered: true, saw_opening: true });
     meetNpc('laochen');
+    // 老陈开场对话结束 → 进入武夷山（首达去茶园认阿秀；熟客回武夷山地图）。
+    // 开场对话是「进入茶区」的一部分，不应作为可返回的上一页，否则会出现
+    // 茶世界 → 武夷山 → 老陈 → 返回 → 老陈 的循环；故从返回栈移除 intro 帧，使后续返回直达茶世界。
     go(isReturning ? 'map' : 'garden');
+    useGame.setState((s) => ({ navHistory: s.navHistory.filter((h) => h.scene !== 'intro') }));
   }
 
   function next() {

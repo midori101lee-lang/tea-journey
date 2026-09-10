@@ -4,10 +4,14 @@ import { useGame } from '../../store/gameStore';
 import { TeaLeavesPile } from '../../components/art/Art';
 
 export default function ResultView() {
-  const { lastResult, player, go, startMaking } = useGame();
+  const { lastResult, player, go, startMaking, startBrewFromStack } = useGame();
   if (!lastResult) return null;
   const tea = getTea(lastResult.teaId);
   const isFail = lastResult.grade === 'fail';
+  // 「带去茶桌泡一杯」直接定位刚入篓的那一 stack 进入泡茶：与茶篓选茶共用同一条入口，
+  // 从而正确记录 brewingStackId，泡完结算时只扣这一包（自制/购买/赠送统一逻辑）。
+  const madeStackId = `${lastResult.teaId}:${lastResult.grade}:${lastResult.roastLevel}`;
+  const madeStack = player.inventory.find((s) => s.id === madeStackId);
 
   return (
     <div style={{ textAlign: 'center' }}>
@@ -35,7 +39,7 @@ export default function ResultView() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <button className="btn btn-primary" onClick={() => go('brew')}>带去茶桌泡一杯</button>
+        <button className="btn btn-primary" onClick={() => (madeStack ? startBrewFromStack(madeStack) : go('brew'))}>带去茶桌泡一杯</button>
         <button className="btn" onClick={() => startMaking(tea.id)}>再做一锅</button>
         <button className="btn" onClick={() => go('journal')}>看看茶游记</button>
         <button className="btn" onClick={() => go('map')}>🗺️ 回茶地图</button>

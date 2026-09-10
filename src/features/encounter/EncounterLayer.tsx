@@ -49,6 +49,12 @@ export default function EncounterLayer() {
         const key = 'mystery_seen_' + pl.day;
         if (pl.flags[key]) clearEncounter();
         else { setFlags({ [key]: 1 }); triggerEncounter(r); }
+      } else if (r && r.npcId === 'laojia' && r.eventId === 'laojia_wangba') {
+        // 王霸茶：与神秘茶人同思路的当日冷却——同日不刷两次、隔天可再遇、拒绝不永久锁死。
+        // 必须在 roll 时即置位，才能覆盖「滚到王霸但中途离开未选」的情形。
+        const key = 'wangba_seen_' + pl.day;
+        if (pl.flags[key]) clearEncounter();
+        else { setFlags({ [key]: 1 }); triggerEncounter(r); }
       } else if (r) {
         triggerEncounter(r);
       } else {

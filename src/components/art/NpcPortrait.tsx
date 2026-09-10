@@ -5,6 +5,7 @@
  * 由 NpcStage 按 focus 位置叠加到对应场景之上。
  */
 
+import { useState } from 'react';
 import { NPCS } from '../../core/data/npcs';
 
 const SKIN = '#ecd9c4';
@@ -173,17 +174,25 @@ export function NpcPortrait({ id, scale }: { id: string; scale?: number }) {
   const npc = NPCS.find((n) => n.id === id);
   const portrait = npc?.portrait;
   const portraitScale = scale == null ? (npc?.portraitScale ?? 1) : 1;
+  const [failed, setFailed] = useState(false);
   const wrap: React.CSSProperties | undefined =
     scale != null
       ? { width: '100%', maxHeight: '100%', transform: `scale(${scale})`, transformOrigin: 'bottom center' as const }
       : portraitScale === 1
         ? undefined
         : { width: `${portraitScale * 100}%`, margin: '0 auto' };
-  if (portrait) {
+  if (portrait && !failed) {
     const src = `${import.meta.env.BASE_URL}${portrait}`;
     return (
       <div style={wrap}>
-        <img className="npc-portrait-img" src={src} alt={id} style={{ display: 'block', width: '100%', height: 'auto' }} />
+        <img
+          className="npc-portrait-img"
+          src={src}
+          alt={id}
+          style={{ display: 'block', width: '100%', height: 'auto' }}
+          onLoad={(e) => e.currentTarget.classList.add('is-loaded')}
+          onError={() => setFailed(true)}
+        />
       </div>
     );
   }

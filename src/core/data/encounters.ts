@@ -113,7 +113,7 @@ export const ENCOUNTERS: EncounterNpc[] = [
     id: 'laojia',
     name: '茶商老贾',
     role: '游动茶商',
-    scenes: { market: 40, teahouse: 18 },
+    scenes: { market: 60, teahouse: 18 },
     events: [
       {
         id: 'laojia_fair',
@@ -198,9 +198,10 @@ export const ENCOUNTERS: EncounterNpc[] = [
       {
         id: 'laojia_wangba',
         scenes: ['market'],
-        weight: 22,
-        // 一次性剧情：玩家既没买过、也没拒绝过才出现；无论买或拒都置 wangba_done，避免反复刷。
-        requires: (p) => !p.flags['wangba_done'],
+        weight: 45,
+        // 当日冷却（与神秘茶人同思路，由 EncounterLayer 在 roll 时写 wangba_seen_{day}）：
+        // 同日不刷两次；隔天可再遇；拒绝也不再永久消失（无 wangba_done 硬锁）。
+        requires: (p) => !p.flags['wangba_seen_' + p.day],
         lines: [
           { speaker: '老贾', text: '来来来，走累了吧？来喝一口，不要钱。' },
           { speaker: '老贾', text: '自己家做的，尝尝——' },
@@ -213,7 +214,7 @@ export const ENCOUNTERS: EncounterNpc[] = [
             outcome: {
               addCoins: -25,
               giveTea: { teaId: 'wangba', grade: 'normal', roastLevel: '足火', count: 1, unitValue: 25 },
-              setsFlags: { wangba_done: 1, bought_wangba: 1 },
+              setsFlags: { bought_wangba: 1 },
               toast: '「景区王霸茶」已放入茶篓——先别急，回去泡了再说。',
             },
           },
@@ -231,14 +232,14 @@ export const ENCOUNTERS: EncounterNpc[] = [
                   outcome: {
                     addCoins: -18,
                     giveTea: { teaId: 'wangba', grade: 'normal', roastLevel: '足火', count: 1, unitValue: 18 },
-                    setsFlags: { wangba_done: 1, bought_wangba: 1 },
+                    setsFlags: { bought_wangba: 1 },
                     toast: '「景区王霸茶」已放入茶篓——回去泡了再说。',
                   },
                 },
                 {
                   label: '不了，我再看看',
                   outcome: {
-                    setsFlags: { wangba_done: 1 },
+                    setsFlags: { bought_wangba: 1 },
                     toast: '（老贾摆摆手：「现在的年轻人啊……」没强求。）',
                   },
                 },
@@ -717,7 +718,7 @@ export const ENCOUNTERS: EncounterNpc[] = [
     id: 'mystery_tea_person',
     name: '神秘茶人',
     role: '山中偶遇的茶人',
-    scenes: { mountain: 6, market: 4 },
+    scenes: { mountain: 4, market: 2 },
     events: [
       {
         id: 'mystery_appear',

@@ -23,7 +23,12 @@ export default function SouvenirView() {
 
         <div className="postcard">
           <div className="postcard-front">
-            <img className="postcard-photo" src={photo} alt={s.caption} />
+            <img
+              className="postcard-photo"
+              src={photo}
+              alt={s.caption}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
             <div className="postcard-caption">{s.caption}</div>
             <div className="postcard-place">📍 {s.place}</div>
           </div>

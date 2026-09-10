@@ -82,7 +82,7 @@
 ## 场景背景资源约定（2026-09-10 起，长期有效）
 - **原始素材在仓库根 `background picture/`**（中文名 + 大小写扩展名混杂，如 `山路.png`、`老陈的茶馆0909.PNG`）。绑定前必须 `ls` 实际文件名，**不要猜**。
 - 运行时资源在 `public/assets/scenes/*.webp`，由 `src/components/scenes/index.ts` 的 `SCENES[key].bg` 绑定（public 相对路径，经 `import.meta.env.BASE_URL` 解析）。渲染为 `.npc-scene-bg`：`object-fit: cover`；NPC 是独立 `z-index:2` 透明层（NpcPortrait），**替换背景不会把 NPC 合并进去**。
-- 现有绑定：`teahouse`=开篇茶馆（`teahouse_opening.webp` ← 老陈的茶馆0909.PNG）、`teatable`=周伯品茶（`teahouse_new.webp` ← 老陈茶馆新.jpg；两者是同一茶馆不同视角，**不可互相替换**）、`mountain`（`mountain.webp` ← 山路.png）、garden/market/workshop/mothertree 各自对应。旧 `teahouse.webp`（← 老陈茶馆.jpg）现已无引用，暂留未删。
+- 现有绑定：`teahouse`=开篇茶馆（`teahouse_opening.webp` ← 老陈的茶馆0909.PNG）、`teatable`=周伯品茶（`teahouse_new.webp` ← 老陈茶馆新.jpg；两者是同一茶馆不同视角，**不可互相替换**）、`mountain`（`mountain.webp` ← 山路.png）、garden/market/workshop/mothertree 各自对应。**旧 `teahouse.webp`（← 老陈茶馆.jpg）已于 2026-09-10 清理删除**（运行时只用 teahouse_opening / teahouse_new，无引用）。
 - 规格：竖版约 934–1200 宽，webp，单张 130–570KB。
 - **转换工具链**：`cwebp`/ImageMagick 均无；macOS `sips` 只能读 webp **不能写**。用托管 venv `/Users/lorilee/.workbuddy/binaries/python/envs/default/bin/python`（已装 Pillow）做缩放 + webp q82。
 - xhs 版是「线性精简流」，bundle 不含 SCENES/NpcStage，故无场景背景路径——属预期，不是绑定失败。
@@ -92,5 +92,11 @@
 - 部署构建一律用 **`npm run build:web`**（= `vite build --mode web --base=./`，产物 `dist`，相对路径 `./assets/...`）。**不要**用 `build:xhs`（那是小红书精简版，产物不同）。
 - Cloudflare Pages：Framework preset = None（或 Vite）；Build command = `npm run build:web`；Build output = `dist`；Root directory 留空；Node = 20（`.nvmrc` 已加，CF 侧可再设 `NODE_VERSION=20`）；无必需环境变量。
 - 存档：localStorage key `teaworld.save.v3`，有隐私模式降级；跨环境/换域名互不影响（存档按 origin 隔离）。
-- Git：已 init，分支 `main`，首次提交 `c8ffecde`。`gh` CLI 未安装，远端仓库由用户手动创建。
+- Git：已 init，分支 `main`。**远端 = SSH**：`git@github.com:midori101lee-lang/tea-journey.git`（用户 2026-09-10 完成 SSH 配置）。**后续一律走 SSH，不得回退 HTTPS 认证方式；不要擅自修改 remote URL。**
+- **本地端 vs 线上端（Cloudflare Pages）边界（2026-09-10 用户明确）**：
+  - **本地端** = `/Users/lorilee/WorkBuddy/tea game`（全部源码 `src/`、`public/assets`、`package.json`、`vite.config.ts`、`.git`、本地 `node_modules/`、本地 `dist/`、及被 .gitignore 排除的三个原始素材目录 `background picture/`、`npc picture/`、`chaju picture/`）。这是编辑与 git 仓库所在地。
+  - **线上端** = Cloudflare Pages 站点 `https://tea-journey.pages.dev`，它是 Cloudflare 在**每次 push 到 GitHub `main` 后**，用 `npm run build:web` 从源码**重新构建**的产物，**不是本地 `dist/`**。线上没有可手改的源文件。
+  - **两端关系**：本地改动 **不**自动影响线上；只有 `git push` 到 GitHub `main` 触发 Cloudflare 重新构建部署后，线上才更新。本地 `dist/` 与线上是两套独立构建，**不要认为本地 build 成功 = 线上已更新**。
+  - **更新完成判定**：必须确认 ① 代码已 `git push` 到 GitHub `main`；② Cloudflare 构建成功（控制台显示 Deployed / 或用 `tea-journey.pages.dev` 实测）。缺任一步都不得声称"GitHub 版本已更新"。
+- **每次修改后流程（用户手动步骤）**：① WorkBuddy 改本地文件 → ② WorkBuddy 展示 `git status`/`diff` 供检查 → ③ **由用户手动** `git add` / `commit` / `push`（或明确授权 WorkBuddy 代提；不要默认自动 push）→ ④ Cloudflare 自动部署（约 1–2 分钟）→ ⑤ 用户去 `tea-journey.pages.dev` 验证。WorkBuddy 不替用户执行 push，除非用户当次明确说"帮我 push"。
 - 注意 `public/assets/teaware` 约 25MB（未压缩原始 PNG），必要时再压缩为 webp（属视觉资源改动，别夹带进部署改动）。

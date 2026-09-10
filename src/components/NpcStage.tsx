@@ -33,7 +33,13 @@ export function NpcStage({
     <div className="npc-stage">
       <div className="npc-scene">
         {bg ? (
-          <img className="npc-scene-bg" src={`${import.meta.env.BASE_URL}${bg}`} alt="" />
+          <img
+            className="npc-scene-bg"
+            src={`${import.meta.env.BASE_URL}${bg}`}
+            alt=""
+            onLoad={(e) => e.currentTarget.classList.add('is-loaded')}
+            onError={(e) => e.currentTarget.classList.add('is-error')}
+          />
         ) : Scene ? (
           <Scene />
         ) : null}

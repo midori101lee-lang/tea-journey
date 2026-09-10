@@ -23,13 +23,20 @@ function pushStack(
   const next = [...inventory];
   const idx = next.findIndex((s) => s.id === key);
   if (idx >= 0) next[idx] = { ...next[idx], count: next[idx].count + count };
-  else next.push({ id: key, teaId, grade, count, unitValue, roastLevel, firstMadeAt: new Date().toISOString(), source, sourceNpc, bargain });
+  else   next.push({ id: key, teaId, grade, count, unitValue, roastLevel, firstMadeAt: new Date().toISOString(), source, sourceNpc, bargain });
   return next;
+}
+
+/** 从茶篓指定 stack 扣 1 包（floor 0；扣到 0 则移出茶篓）。库存最低不为负，永远不出现负数。 */
+function consumeOne(inventory: TeaStack[], stackId: string): TeaStack[] {
+  const next = inventory.map((s) => s.id === stackId ? { ...s, count: Math.max(0, s.count - 1) } : s);
+  return next.filter((s) => s.count > 0);
 }
 
 /** 第一日场景状态机（Web 版完整游历；XHS 版走线性精简流，复用同一 store） */
 export type Scene =
   | 'intro'        // 茶馆开场
+  | 'teaworld'     // 茶世界：茶区旅行入口（四宫格 + 茶叶旅行动画）
   | 'map'          // 武夷山地点选择
   | 'teahouse'     // 老陈茶馆 + 林姑娘线索
   | 'garden'       // 茶园：阿秀 + 选茶 + 采茶
@@ -86,6 +93,10 @@ interface GameStore {
   currentTeaId: string | null;
   lastResult: ProcessingResult | null;
   lastBrew: BrewOutcome | null;
+  /** 当前正在泡的茶篓 stack id（瞬时 UI 态，不写盘）。「一包茶 = 一次完整泡茶」在结算时据此扣 1；结算后置 null 作防重复守卫。 */
+  brewingStackId: string | null;
+  /** 泡完后的一句轻量库存反馈（瞬时 UI 态，不写盘）。 */
+  drinkNotice: string | null;
   currentDialogueIds: string[]; // 当前场景要播的对话 id
   /** 当前场景里正发生的偶遇（瞬时 UI 态，不写盘；刷新不恢复）。 */
   activeEncounter: RolledEncounter | null;
@@ -125,7 +136,7 @@ interface GameStore {
 }
 
 export const useGame = create<GameStore>((set, get) => ({
-  scene: 'intro',
+  scene: 'teaworld',
   sceneData: {},
   navHistory: [],
   difficulty: 'standard',
@@ -133,6 +144,8 @@ export const useGame = create<GameStore>((set, get) => ({
   currentTeaId: null,
   lastResult: null,
   lastBrew: null,
+  brewingStackId: null,
+  drinkNotice: null,
   currentDialogueIds: [],
   activeEncounter: null,
   pendingDayIntro: null,
@@ -261,11 +274,32 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ player: next, lastResult: result, scene: 'result' });
   },
 
-  finishBrewing: (o) => set({ lastBrew: o, scene: 'teatable' }),
+  finishBrewing: (o) => {
+    // 「一包茶 = 一次完整泡茶」：仅在此处（完整泡茶完成 / 收杯结算）扣 1 包。
+    // 中途退出、切换场景、返回都不调本函数 → 不扣茶。brewingStackId 在扣完后置 null，
+    // 即使因 effect / 重渲染导致本函数被重复调用，第二次也因 id 已空而不重复扣除。
+    const st = get();
+    const id = st.brewingStackId;
+    if (id) {
+      const stack = st.player.inventory.find((s) => s.id === id);
+      const inventory = consumeOne(st.player.inventory, id);
+      const next = { ...st.player, inventory };
+      persist(next);
+      set({
+        lastBrew: o,
+        scene: 'teatable',
+        player: next,
+        brewingStackId: null,
+        drinkNotice: stack ? `这一泡喝完了——${getTea(stack.teaId).name} 少了一包。` : null,
+      });
+    } else {
+      set({ lastBrew: o, scene: 'teatable' });
+    }
+  },
 
   startBrewFromStack: (stack) => {
     // 从库存合成一个「结果」喂给泡茶流程：买来的茶没有制茶过程，用默认值补齐全字段。
-    // 不扣库存、不改 coins —— 泡的是「手上的样品」，喝掉才计入消耗（本 MVP 不消耗库存）。
+    // 此处只记录 brewingStackId（用于结算时扣 1 包），不立即扣库存。
     // 携带 sourceNpc / bargain，让周伯品茶时能给出「捡漏 / 买贵」的生活化反馈（无数值奖惩）。
     const result: ProcessingResult = {
       teaId: stack.teaId,
@@ -282,6 +316,8 @@ export const useGame = create<GameStore>((set, get) => ({
     set((st) => ({
       lastResult: result,
       currentTeaId: stack.teaId,
+      brewingStackId: stack.id,
+      drinkNotice: null,
       scene: 'brew',
       navHistory: pushHist(st.navHistory, { scene: st.scene, data: st.sceneData }),
     }));
@@ -355,6 +391,6 @@ export const useGame = create<GameStore>((set, get) => ({
     try { localStorage.removeItem('teaworld.save.v3'); } catch { /* ignore */ }
     const p = loadSave().player;
     persist(p);
-    set({ player: p, scene: 'intro', lastResult: null, currentTeaId: null, sceneData: {} });
+    set({ player: p, scene: 'teaworld', lastResult: null, currentTeaId: null, sceneData: {} });
   },
 }));
