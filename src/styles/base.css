@@ -1,0 +1,725 @@
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+
+.title-v {
+  writing-mode: vertical-rl;
+  font-family: var(--serif);
+  letter-spacing: 0.35em;
+  color: var(--ink);
+}
+
+.h-serif { font-family: var(--serif); font-weight: 500; }
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 12px 18px;
+  border: 1px solid var(--ochre);
+  border-radius: 6px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 16px;
+  font-family: var(--sans);
+  cursor: pointer;
+  box-shadow: 1px 2px 0 rgba(200, 169, 138, 0.35);
+  transition: transform 0.08s ease;
+}
+.btn:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(200,169,138,0.35); }
+.btn-primary { background: var(--bamboo); border-color: var(--bamboo); color: #fff; }
+.btn-seal { background: var(--seal); border-color: var(--seal); color: #fff; }
+.btn:disabled { opacity: 0.45; }
+
+.card {
+  background: var(--paper-2);
+  border: 1px solid rgba(200, 169, 138, 0.5);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.hint { color: var(--ink-2); font-size: 13px; }
+
+.meter {
+  position: relative;
+  height: 14px;
+  border-radius: 7px;
+  background: #e8e0d0;
+  overflow: hidden;
+}
+.meter > i { position: absolute; top: 0; bottom: 0; display: block; }
+
+.note {
+  font-family: var(--serif);
+  text-align: center;
+  color: var(--ink);
+}
+.seal {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1.5px solid var(--seal);
+  border-radius: 4px;
+  color: var(--seal);
+  font-family: var(--serif);
+  font-size: 14px;
+}
+
+/* ───── 场景容器 ───── */
+/* padding-top 预留全局「返回键安全区」：返回键为绝对定位浮于左上角，
+   给场景内容留出顶部空间，避免压到页面标题（茶游记 / 茶区名 / 第N天 等）。 */
+.scene { display: flex; flex-direction: column; gap: 14px; position: relative; padding-top: 48px; }
+.scene-foot { display: flex; flex-direction: column; gap: 10px; }
+.scene-foot .btn { margin: 0; }
+
+/* ───── 统一返回键（页面左上角） ───── */
+.back-btn {
+  position: absolute;
+  top: 8px; left: 8px;
+  z-index: 20;
+  width: auto;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 12px;
+  font-size: 14px; font-family: var(--serif);
+  color: var(--ink);
+  background: rgba(251, 246, 236, 0.92);
+  border: 1px solid rgba(200, 169, 138, 0.7);
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(80, 56, 32, 0.22);
+  cursor: pointer;
+}
+.back-btn:active { transform: translateY(1px); }
+.back-arrow { font-size: 16px; line-height: 1; }
+
+/* ───── 离开流程确认 ───── */
+.confirm-leave {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(28, 22, 16, 0.5);
+  padding: 24px;
+}
+.confirm-card {
+  width: 100%; max-width: 320px;
+  background: var(--paper-2);
+  border: 1px solid rgba(200, 169, 138, 0.6);
+  border-radius: var(--radius);
+  padding: 18px 18px 16px;
+  box-shadow: 0 8px 30px rgba(40, 28, 16, 0.34);
+  text-align: center;
+}
+.confirm-title { font-family: var(--serif); font-size: 18px; margin: 0 0 6px; color: var(--ink); }
+.confirm-sub { font-size: 13.5px; color: var(--ink-2); margin: 0 0 14px; line-height: 1.6; }
+.confirm-actions { display: flex; flex-direction: column; gap: 8px; }
+.confirm-actions .btn { margin: 0; }
+
+/* ───── 母树赠礼 · 获得反馈 ───── */
+.gift-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  background: var(--paper-2);
+  border: 1px solid rgba(200, 169, 138, 0.6);
+  box-shadow: 0 2px 10px rgba(40, 28, 16, 0.2);
+  animation: giftIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.gift-banner-quiet { background: rgba(251, 246, 236, 0.6); box-shadow: none; }
+.gift-icon { font-size: 26px; line-height: 1; }
+.gift-text { flex: 1; min-width: 0; }
+.gift-title { font-family: var(--serif); font-size: 15px; color: var(--ink); }
+.gift-sub { font-size: 13px; color: var(--ink-2); }
+.gift-banner .btn { width: auto; margin: 0; padding: 8px 12px; font-size: 13.5px; }
+@keyframes giftIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ───── 旅行纪念 · 明信片 ───── */
+.souvenir-view { display: flex; flex-direction: column; }
+.postcard {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--paper-2);
+  border: 1px solid rgba(200, 169, 138, 0.6);
+  box-shadow: 0 4px 16px rgba(60, 42, 24, 0.22);
+  animation: giftIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.postcard-front { position: relative; }
+.postcard-photo { display: block; width: 100%; height: auto; max-height: 56dvh; object-fit: cover; }
+.postcard-caption {
+  position: absolute; left: 12px; bottom: 30px;
+  font-family: var(--serif); font-size: 20px; letter-spacing: 0.04em;
+  color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+.postcard-place {
+  position: absolute; left: 12px; bottom: 10px;
+  font-size: 13px; color: #f3ecdd; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.postcard-back { padding: 14px 16px 16px; }
+.postcard-back-head { font-family: var(--serif); font-size: 16px; color: var(--ink); margin-bottom: 6px; }
+.postcard-back-text { font-size: 14px; line-height: 1.7; color: var(--ink-2); margin: 0 0 10px; }
+.postcard-note {
+  padding: 10px 12px; border-radius: 8px;
+  background: rgba(176, 138, 122, 0.12);
+  border-left: 3px solid var(--ochre);
+}
+.postcard-note-label { font-size: 12px; color: var(--ink-3); margin-bottom: 3px; }
+.postcard-note p { font-family: var(--serif); font-size: 15px; color: var(--ink); margin: 0; }
+
+/* ───── NPC 场景化对话 ───── */
+.npc-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 390 / 560;
+  max-height: 72dvh;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--paper);
+  box-shadow: 0 2px 10px rgba(120, 90, 60, 0.18);
+}
+.npc-scene { position: absolute; inset: 0; }
+.npc-scene svg { width: 100%; height: 100%; display: block; }
+.npc-scene img.npc-scene-bg { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.npc-figure {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 8px rgba(60, 40, 20, 0.22));
+}
+.npc-figure svg { width: 100%; height: auto; display: block; }
+.npc-figure img, .npc-portrait-img { width: 100%; height: auto; display: block; object-fit: contain; }
+
+.dialog-overlay {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 3;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, rgba(28, 22, 16, 0.72) 0%, rgba(28, 22, 16, 0.42) 55%, rgba(28, 22, 16, 0) 100%);
+  color: #fbf6ec;
+}
+.dialog-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.dialog-npc-inline { font-family: var(--serif); font-size: 17px; color: #fbf6ec; }
+.dialog-role-inline { font-size: 12px; color: rgba(251, 246, 236, 0.78); }
+.dialog-line {
+  font-family: var(--serif);
+  font-size: 17px; line-height: 1.7;
+  color: #fbf6ec; margin: 0 0 10px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+.dialog-establish {
+  font-size: 19px; letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+.dialog-feedback {
+  color: #f3e6cf;
+  font-style: italic;
+  font-size: 16px;
+}
+.dialog-continue { margin-top: 2px; }
+.dialog-choices { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+.dialog-choices .btn { background: rgba(251, 246, 236, 0.92); border-color: rgba(200, 169, 138, 0.6); color: var(--ink); }
+
+/* ───── 场景级偶遇层（Overlay，非独立页面） ───── */
+/* 本层是 .scene 的绝对子层：覆盖当前场景、不重渲染背景、不改变 width/height/aspect。 */
+.encounter-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none; /* 仅 NPC 立绘与对话区接收点击，不拦截场景其它处 */
+}
+/* 偶遇 NPC 立绘层：相对 .scene 定位。zIndex 低于对话渐变层（人物→渐变→文字），
+   对话期间始终留在原位置且不遮挡文字。 */
+/* pointer-events:none：本轮已删除「点击搭话」，NPC 立绘只作展示，点击穿透到对话按钮，
+   避免立绘遮挡底部「买一包 / 继续」等按钮。 */
+.encounter-figure {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 8px rgba(60, 40, 20, 0.22));
+}
+.encounter-figure svg, .encounter-figure img,
+.encounter-figure .npc-portrait-img { width: 100%; height: auto; display: block; }
+/* 对话渐变遮罩层：位于 NPC 之上、文字之下，覆盖场景底部约 36% 高度，
+   让 NPC 下半部自然隐入场景，从而文字始终清晰（绘本式层次）。 */
+.encounter-gradient {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 36%;
+  z-index: 25;
+  pointer-events: none;
+  background: linear-gradient(to top,
+    rgba(28, 22, 16, 0.88) 0%,
+    rgba(28, 22, 16, 0.62) 42%,
+    rgba(28, 22, 16, 0) 100%);
+}
+/* 偶遇对话层（Dialogue Layer）：贴在当前场景底部，复用 dialog 的浅色文字样式。
+   背景透明——暗渐变由独立的 .encounter-gradient 层承担；本层仅承载文字与按钮，位于渐变之上。 */
+.encounter-dialogue {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 30;
+  pointer-events: auto;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+  background: transparent;
+  color: #fbf6ec;
+}
+.encounter-dialogue .dialog-meta { margin-bottom: 6px; }
+.encounter-dialogue .dialog-line { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
+/* 跟进分支（拒绝后被劝一次）里追加的对话行，略缩进以示承接 */
+.encounter-dialogue .dialog-line-follow { margin-left: 12px; opacity: 0.92; }
+
+/* ───── 茶桌 · 茶篓选茶泡一壶 ───── */
+.brew-picker { margin-top: 2px; }
+
+/* ───── 偶遇 · 买茶确认面板 ───── */
+.buy-confirm {
+  margin-top: 8px; padding: 10px 12px; border-radius: 10px;
+  background: rgba(251, 246, 236, 0.94);
+  color: var(--ink); box-shadow: 0 2px 8px rgba(40, 28, 16, 0.28);
+}
+.buy-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 15px; margin: 3px 0; }
+.buy-row span:first-child { color: var(--ink-2); }
+.buy-remain { font-family: var(--serif); font-size: 16px; border-top: 1px dashed rgba(200, 169, 138, 0.55); padding-top: 6px; margin-top: 6px; }
+.buy-confirm .hint.warn { color: var(--seal); margin: 8px 0 4px; }
+
+/* ───── 偶遇 · 获得茶叶反馈（轻量动画） ───── */
+.tea-gain {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  margin: 4px 0 8px; padding: 10px 14px; border-radius: 10px;
+  background: rgba(251, 246, 236, 0.95); color: var(--ink);
+  box-shadow: 0 2px 10px rgba(40, 28, 16, 0.3);
+  animation: teaGainIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tea-gain-icon { font-size: 30px; line-height: 1; animation: teaPop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.tea-gain-text { font-family: var(--serif); font-size: 16px; }
+.tea-gain-sub { font-size: 12.5px; color: var(--ink-2); }
+@keyframes teaGainIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes teaPop {
+  0% { transform: translateY(6px) scale(0.6); opacity: 0; }
+  60% { transform: translateY(-4px) scale(1.12); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* ───── 茶集市交易面板 ───── */
+.market-inspect { display: flex; flex-direction: column; gap: 8px; }
+.market-trade { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 2px; max-height: 52dvh; overflow-y: auto; }
+.trade-card {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(28, 22, 16, 0.42);
+  border: 1px solid rgba(200, 169, 138, 0.28);
+}
+.trade-head { font-size: 14px; color: #fbf6ec; font-family: var(--serif); letter-spacing: 0.02em; }
+.trade-card .dialog-line { margin: 0 0 5px; font-size: 15.5px; }
+.xiaoman-look { font-size: 13px; color: rgba(243, 230, 207, 0.85); margin: 2px 0 0; font-style: italic; }
+.price-advice { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.price-compare {
+  align-self: flex-start; font-size: 13.5px; color: #fbf6ec;
+  background: rgba(251, 246, 236, 0.14); padding: 4px 10px; border-radius: 6px;
+}
+.trade-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.trade-actions .btn { margin: 0; padding: 7px 12px; font-size: 13.5px; width: auto; }
+.btn-ghost { background: transparent; border-color: rgba(200, 169, 138, 0.5); color: #f3e6cf; box-shadow: none; }
+.hint.warn { color: #f0b9a0; margin: 2px 0; }
+.sold-msg { color: #f3e6cf; margin-top: 6px; }
+
+/* ───── 茶集市 V0.3：逛摊与买茶 ───── */
+.market-home { display: flex; flex-direction: column; gap: 8px; }
+.market-home .dialog-line { font-size: 15.5px; }
+
+.market-browse { display: flex; flex-direction: column; gap: 10px; }
+.stall-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.stall-card {
+  position: relative; width: 30%; min-width: 92px; max-width: 122px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 6px 10px; cursor: pointer;
+  background: rgba(28, 22, 16, 0.42); border: 1px solid rgba(200,169,138,0.3); border-radius: 12px;
+}
+.stall-card:hover { border-color: rgba(200,169,138,0.72); background: rgba(28,22,16,0.55); }
+.stall-portrait { width: 100%; aspect-ratio: 3 / 4; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; }
+.stall-portrait svg, .stall-portrait img, .stall-portrait .npc-portrait-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.stall-name { font-family: var(--serif); font-size: 13.5px; color: #fbf6ec; text-align: center; }
+.stall-tag {
+  position: absolute; top: 4px; right: 4px; font-size: 11px; color: #f3e6cf;
+  background: rgba(200,169,138,0.35); border-radius: 5px; padding: 1px 5px;
+}
+
+.stall-detail { display: flex; flex-direction: column; gap: 10px; max-height: 56dvh; overflow-y: auto; padding-right: 2px; }
+.stall-tea {
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 12px;
+  background: rgba(28, 22, 16, 0.42); border: 1px solid rgba(200,169,138,0.28); border-radius: 10px;
+}
+.stall-tea-head { font-family: var(--serif); font-size: 15px; color: #fbf6ec; }
+.stall-tea-desc { font-size: 13.5px; color: rgba(243,230,207,0.85); font-style: italic; }
+.stall-tea-buy { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.stall-tea-buy .btn { margin: 0; padding: 7px 14px; font-size: 13.5px; width: auto; }
+.stall-tea-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.stall-tea-actions .btn { margin: 0; padding: 6px 12px; font-size: 13px; width: auto; }
+
+/* 茶集市 V0.4：「看看茶」详情面板 / 「问问老板」问答面板（不出现任何专业评分数字） */
+.tea-detail, .ask-panel {
+  display: flex; flex-direction: column; gap: 8px; padding: 12px 14px;
+  background: rgba(28, 22, 16, 0.5); border: 1px solid rgba(200,169,138,0.34); border-radius: 12px;
+}
+.tea-detail-head, .ask-panel .tea-detail-head {
+  font-family: var(--serif); font-size: 16px; color: #fbf6ec; letter-spacing: 0.04em;
+}
+.ask-panel .hint { margin: 0; }
+.ask-q { text-align: left; margin: 0; padding: 9px 12px; font-size: 14px; width: 100%; }
+.ask-q + .ask-q { margin-top: 0; }
+
+/* 茶集市 · 摊位里的茶具（与茶混摆；已拥有不再扣钱） */
+.stall-section-label { font-family: var(--serif); font-size: 13px; color: rgba(243, 230, 207, 0.7); margin-top: 2px; }
+.stall-wares { display: flex; flex-direction: column; gap: 8px; }
+.stall-ware {
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 12px;
+  background: rgba(28, 22, 16, 0.42); border: 1px solid rgba(200, 169, 138, 0.28); border-radius: 10px;
+}
+.stall-ware.owned { opacity: 0.72; }
+
+/* 茶具稀有度小标签（同时用于集市卡片与茶游记；配色兼顾深色/浅色背景） */
+.ware-rarity {
+  font-size: 11px; padding: 1px 7px; border-radius: 5px; margin-left: 8px; vertical-align: middle;
+  font-family: var(--sans, system-ui); letter-spacing: 0.02em;
+}
+.ware-common { background: #e8dcc6; color: #6b5a3e; }
+.ware-intermediate { background: #cfe3c8; color: #3f6b3a; }
+.ware-advanced { background: #f0ddb8; color: #8a5a1e; }
+.ware-rare { background: #f3c9c0; color: #9a3b2e; }
+
+/* 旧对话卡片（不再用于 NPC 场景；保留变量兼容性） */
+.dialog-card {
+  background: var(--paper-2);
+  border: 1px solid rgba(200, 169, 138, 0.5);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.dialog-npc { font-family: var(--serif); font-size: 18px; color: var(--ink); display: block; }
+.dialog-role { font-size: 12px; color: var(--ink-2); display: block; }
+
+/* ───── 选茶 / 地点卡 ───── */
+.tea-option {
+  text-align: left; width: 100%; padding: 12px 14px; cursor: pointer;
+  background: var(--paper-2); border: 1px solid rgba(200,169,138,0.5); border-radius: var(--radius);
+}
+.tea-option:disabled { cursor: not-allowed; }
+.loc-card {
+  text-align: left; width: 100%; padding: 12px 14px; cursor: pointer;
+  background: var(--paper-2); border: 1px solid rgba(200,169,138,0.5); border-radius: var(--radius);
+}
+.loc-card:disabled { cursor: not-allowed; }
+
+/* ───── 泡茶 · 场景化拖拽舞台 ───── */
+.brew-stage {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  margin: 4px auto 0;
+  height: 250px;
+  background: #f4efe2;
+  border: 1px solid #e0d6bf;
+  border-radius: 12px;
+  overflow: hidden;
+  touch-action: none;
+}
+.brew-item {
+  position: absolute;
+  cursor: grab;
+  touch-action: none;
+  filter: drop-shadow(0 3px 4px rgba(80, 60, 40, 0.18));
+  z-index: 4;
+}
+.brew-item:active { cursor: grabbing; }
+.brew-gaiwantarget { position: absolute; left: 100px; top: 150px; z-index: 2; }
+.brew-gongdao { position: absolute; z-index: 2; }
+.brew-splash {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  background: radial-gradient(circle, #cfe6f2 0%, #9fc0d8 70%, rgba(159,192,216,0) 100%);
+  pointer-events: none; z-index: 3;
+}
+.brew-foot { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.brew-meter { height: 10px; border-radius: 5px; background: #e8e0d0; overflow: hidden; }
+.brew-meter > i { display: block; height: 100%; background: var(--liquor); transition: width .12s; }
+.brew-tip { font-size: 13px; color: var(--ink-2); margin: 0; }
+
+/* ───── 漫画 ───── */
+.comic-view { display: flex; flex-direction: column; }
+.comic-source { font-size: 12px; color: var(--ink-3); margin-bottom: 10px; }
+.comic-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.comic-panel { display: flex; flex-direction: column; gap: 6px; }
+.comic-frame {
+  position: relative; aspect-ratio: 1 / 0.7; background: var(--paper-2);
+  border: 1px solid rgba(200,169,138,0.5); border-radius: 8px; overflow: hidden; padding: 6px;
+}
+.comic-blank { width: 100%; height: 100%; background: #ece4d2; border-radius: 4px; }
+.comic-no {
+  position: absolute; right: 6px; bottom: 4px; font-family: var(--serif);
+  font-size: 12px; color: var(--ink-3);
+}
+.comic-caption { font-size: 13px; line-height: 1.5; color: var(--ink); margin: 0; }
+
+/* ───── 手账 ───── */
+.journal { display: flex; flex-direction: column; gap: 14px; }
+.journal-card {
+  background: var(--paper-2); border: 1px solid rgba(200,169,138,0.5);
+  border-radius: var(--radius); padding: 14px;
+}
+.journal-card h3 { margin: 0 0 8px; font-size: 16px; }
+.journal-list { margin: 0; padding-left: 18px; }
+.journal-list li { font-size: 14px; margin: 4px 0; }
+
+/* ───── 小红书版 ───── */
+.xhs-home { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; }
+.xhs-title { font-family: var(--serif); font-size: 26px; line-height: 1.6; color: var(--ink); }
+.xhs-cta { max-width: 240px; font-size: 18px; padding: 14px; }
+.xhs-card { text-align: center; background: var(--paper-2); border: 1px solid rgba(200,169,138,0.5); border-radius: var(--radius); padding: 18px; }
+.xhs-grade { font-family: var(--serif); font-size: 34px; letter-spacing: 0.3em; margin: 6px 0; }
+
+/* ───── 采茶 · 茶园场景（一梢一梢地采，不是点颜色） ───── */
+.pick-wrap { display: flex; flex-direction: column; gap: 8px; }
+.pick-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 390 / 560;
+  max-height: 68dvh;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--paper);
+  box-shadow: 0 2px 10px rgba(120, 90, 60, 0.18);
+}
+.pick-bg { position: absolute; inset: 0; z-index: 0; }
+.pick-bg svg { width: 100%; height: 100%; display: block; }
+
+/* 阿秀：站在茶园里的人，不是头像卡片 */
+.pick-axiu {
+  position: absolute; z-index: 2;
+  right: 4%; bottom: 32%; width: 27%;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 8px rgba(60, 40, 20, 0.22));
+}
+.pick-axiu svg { width: 100%; height: auto; display: block; }
+
+/* 茶梢：按住往下一带 */
+.pick-shoot {
+  position: absolute; z-index: 3;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  filter: drop-shadow(0 3px 4px rgba(60, 50, 30, 0.2));
+}
+.pick-shoot.is-drag { cursor: grabbing; }
+.pick-shoot svg { display: block; }
+
+/* 竹篮：今天这一篓，不是长期背包 */
+.pick-basket {
+  position: absolute; z-index: 4;
+  left: 50%; bottom: 6%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center;
+  pointer-events: none;
+}
+.pick-basket-leaves {
+  display: flex; align-items: flex-end; justify-content: center; gap: 1px;
+  height: 22px; margin-bottom: -6px;
+}
+.pick-basket-leaves svg { display: block; }
+.pick-basket-count {
+  font-family: var(--serif); font-size: 13px;
+  color: #4a3a2a;
+  background: rgba(251, 246, 236, 0.82);
+  border-radius: 999px; padding: 2px 10px;
+  box-shadow: 0 1px 3px rgba(60, 40, 20, 0.16);
+}
+
+/* 阿秀引导 / 看这一篓 */
+.pick-overlay {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 5;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, rgba(28, 22, 16, 0.72) 0%, rgba(28, 22, 16, 0.42) 55%, rgba(28, 22, 16, 0) 100%);
+  color: #fbf6ec;
+}
+.pick-sayer { font-size: 12px; color: rgba(251, 246, 236, 0.78); margin-bottom: 4px; }
+.pick-line {
+  font-family: var(--serif); font-size: 17px; line-height: 1.7;
+  color: #fbf6ec; margin: 0 0 10px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+.pick-hint { margin: 0; text-align: center; }
+
+/* ───── 我的茶游记 · 两层信息架构（茶客手记 / 茶山足迹） ───── */
+/* 第一层＝「我」：手账、纸张、印章；第二层＝「我去过哪」：地图、旅行、地域。 */
+
+/* 第一层：茶客手记 */
+.journal-me {
+  position: relative;
+  padding: 14px 14px 12px;
+  margin-bottom: 18px;
+  background: linear-gradient(180deg, #fdf8ec 0%, #f7efdd 100%);
+  border: 1px solid rgba(120, 96, 60, 0.28);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(90, 70, 40, 0.1);
+}
+.journal-me::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 10px;
+  background-image: repeating-linear-gradient(135deg, rgba(150, 120, 80, 0.05) 0 2px, transparent 2px 6px);
+  pointer-events: none;
+}
+.journal-me-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 16px; margin-bottom: 10px; padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(120, 96, 60, 0.35);
+}
+.journal-me-seal {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 4px;
+  background: #b4553a; color: #fdf6e8;
+  font-family: var(--serif); font-size: 13px;
+  box-shadow: 0 1px 2px rgba(120, 50, 30, 0.3);
+}
+.journal-me-rows { display: flex; flex-direction: column; gap: 8px; }
+.me-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+}
+.me-row-strong { padding-top: 6px; border-top: 1px dotted rgba(120, 96, 60, 0.22); }
+.me-label { font-size: 13px; color: #7a6647; }
+.me-value { font-size: 14px; color: #3f3324; text-align: right; }
+.me-big { font-family: var(--serif); font-size: 20px; font-weight: 600; color: #2f2617; }
+.me-prof { display: inline-block; margin-left: 8px; font-size: 13px; }
+
+/* 成就（轻量，无积分无等级） */
+.journal-ach { margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(120, 96, 60, 0.35); }
+.ach-head { font-size: 13px; color: #7a6647; margin-bottom: 8px; }
+.ach-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.ach-chip {
+  font-size: 12.5px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid rgba(120, 96, 60, 0.3);
+  background: rgba(255, 255, 255, 0.45);
+}
+.ach-got { background: #f4e6c8; color: #6b4f22; border-color: rgba(160, 120, 50, 0.4); }
+.ach-lock { opacity: 0.5; }
+
+/* 第二层：我的茶山足迹 */
+.journal-regions { margin-top: 4px; }
+.journal-sec-head {
+  font-family: var(--serif); font-size: 16px; color: #4a3a2a;
+  margin-bottom: 10px; padding-left: 2px;
+}
+
+/* 茶游记 · 我的茶具收藏 */
+.journal-wares { margin-top: 18px; }
+.ware-grid { display: flex; flex-direction: column; gap: 9px; }
+.ware-chip {
+  display: flex; gap: 11px; align-items: center;
+  padding: 9px 11px; border-radius: 11px;
+  background: rgba(255, 253, 246, 0.92); border: 1px solid rgba(120, 96, 60, 0.22);
+}
+.ware-thumb {
+  width: 52px; height: 52px; flex: none; object-fit: contain;
+  background: rgba(255, 255, 255, 0.55); border-radius: 9px; padding: 3px;
+}
+.ware-chip-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ware-chip-name { font-size: 15px; color: #4a3a2a; }
+.ware-chip-body .ware-rarity { margin-left: 0; align-self: flex-start; }
+.ware-chip-desc { font-size: 12.5px; color: #7a6a54; line-height: 1.45; }
+.region-card {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left;
+  margin-bottom: 10px; padding: 12px;
+  font: inherit; color: inherit;
+  background: rgba(255, 253, 246, 0.9);
+  border: 1px solid rgba(120, 96, 60, 0.22);
+  border-left: 5px solid #7a9a5b;
+  border-radius: 10px; cursor: pointer;
+  box-shadow: 0 1px 4px rgba(90, 70, 40, 0.08);
+}
+.region-card:hover { background: #fffdf6; }
+.region-card-locked { cursor: default; opacity: 0.62; background: rgba(246, 242, 232, 0.7); }
+.region-icon {
+  flex: 0 0 34px; height: 34px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 17px; color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+.region-icon-dim { filter: grayscale(0.55); opacity: 0.7; }
+.region-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.region-name { font-size: 15.5px; color: #33291b; }
+.region-meta { font-size: 12.5px; color: #7a6647; }
+.region-arrow { font-size: 20px; color: #a8967a; }
+
+/* 茶区详情页：熟练度 与 探索进度 分开呈现 */
+.region-stat-row { display: flex; gap: 10px; margin-bottom: 14px; }
+.region-stat {
+  flex: 1; text-align: center; padding: 10px 6px;
+  background: rgba(255, 253, 246, 0.86);
+  border: 1px solid rgba(120, 96, 60, 0.2);
+  border-radius: 10px;
+}
+.region-stat-label { font-size: 12px; color: #7a6647; margin-bottom: 3px; }
+.region-stat-value { font-size: 18px; color: #33291b; }
+
+/* 茶漫画 SVG（手绘线稿 + 轻水彩 + 纸纹） */
+.comic-svg { display: block; border-radius: 4px; }
+
+/* 炒揉茶叶：轻量翻动感（仅轻微旋转/位移，不干扰形态叙事） */
+@keyframes teaSway {
+  0%, 100% { transform: rotate(-1.1deg) translateY(0); }
+  50%      { transform: rotate(1.1deg) translateY(-1.5px); }
+}
+.tea-leaves-sway {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: teaSway 5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tea-leaves-sway { animation: none; }
+}
+
+/* ───── 回茶馆歇一晚：新的一天 轻量提示（瞬时 UI，不写盘） ───── */
+.day-intro {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(28, 22, 16, 0.55);
+  padding: 24px;
+}
+.day-intro-card {
+  width: 100%; max-width: 320px;
+  background: var(--paper);
+  border: 1px solid rgba(200, 169, 138, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(60, 40, 20, 0.35);
+  padding: 26px 22px 22px;
+  text-align: center;
+}
+.day-intro-sun { font-size: 34px; line-height: 1; }
+.day-intro-title {
+  font-size: 22px; margin: 10px 0 8px; color: var(--ink);
+}
+.day-intro-sub {
+  font-family: var(--serif); font-size: 15px; color: var(--ink-2);
+  margin: 0 0 18px; line-height: 1.7;
+}

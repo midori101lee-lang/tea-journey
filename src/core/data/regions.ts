@@ -1,0 +1,102 @@
+import type { Region, Clue, Player } from '../types';
+import { TEAS } from './teas';
+
+// ─────────── 茶区（先做一座山，再做整个中国） ───────────
+// 第一章固定：武夷山。地点用轻量列表，不做大地图（MVP 原则）。
+
+export const REGIONS: Region[] = [
+  {
+    id: 'wuyishan',
+    name: '武夷山',
+    accent: '#7a9a5b', // 茶区主题色：山绿
+    intro: '丹霞红岩之间，一片茶山正醒着。你从茶馆老陈那儿，第一次走进武夷山。',
+    locations: [
+      { id: 'teahouse', name: '老陈的茶馆', npcIds: ['laochen', 'linggu'], accent: '#b9c9a3', blurb: '进山的第一个落脚点。一杯茶，一段闲话。' },
+      { id: 'garden', name: '茶园', npcIds: ['axiu'], accent: '#c2d6a0', blurb: '阿秀守着这片开面采的茶青。' },
+      { id: 'workshop', name: '制茶坊', npcIds: ['yanbo'], accent: '#cdb48a', blurb: '岩伯看火的地方，也是你认识制茶工序的门槛。真要做茶，从茶园选茶那头进。' },
+      { id: 'teatable', name: '茶桌', npcIds: ['zhoubo'], accent: '#c9b79c', blurb: '周伯的盖碗。自己做的茶，在这里见真章。' },
+      { id: 'mothertree', name: '九龙窠母树', npcIds: ['yanbo'], accent: '#bb8a7a', blurb: '看得到、喝不到的活标本。', locked: false },
+      { id: 'market', name: '茶集市', npcIds: ['xiaoman'], accent: '#c8b27a', blurb: '买卖茶与茶具的地方。', locked: true },
+    ],
+  },
+  // 后续版本：杭州 / 福州 / 潮州 …… 只加数据，不动逻辑。
+];
+
+export function getRegion(id: string): Region {
+  const r = REGIONS.find((x) => x.id === id);
+  if (!r) throw new Error(`unknown region: ${id}`);
+  return r;
+}
+
+// ─────────── 茶集市解锁 ───────────
+// 条件：玩家亲手完成过武夷山三种茶各至少一次（记录于 player.madeTeas，与背包无关）。
+// 不使用熟练度 / 次数 / 随机 / 单纯剧情门槛。
+export const MARKET_REQUIRED_TEAS = ['rougui', 'shuixian', 'dahongpao'];
+
+export function isMarketUnlocked(player: Player): boolean {
+  return MARKET_REQUIRED_TEAS.every((id) => !!player.madeTeas[id]);
+}
+
+// ─────────── 线索（探索驱动，不自动弹窗解锁） ───────────
+// 集齐后不弹「已解锁杭州」，而是林姑娘/老陈问一句「想不想出去走走？」由玩家主动触发。
+
+export const CLUES: Clue[] = [
+  {
+    id: 'clue_hangzhou',
+    fromRegion: 'wuyishan',
+    toRegion: 'hangzhou',
+    text: '林姑娘：「杭州那边做茶可不摇这个——他们要嫩芽，锅一烫就杀青。同一片叶子，换个山头，做法完全两样。」',
+    triggerFlag: 'heard_about_hangzhou',
+    sourceNpc: 'linggu',
+  },
+  {
+    id: 'clue_fuzhou',
+    fromRegion: 'wuyishan',
+    toRegion: 'fuzhou',
+    text: '老陈：「福州人拿茶坯去窨花，茉莉香是『吃』进去的，不是长出来的。你以后去南方，闻闻就懂。」',
+    triggerFlag: 'heard_about_fuzhou',
+    sourceNpc: 'laochen',
+  },
+];
+
+export function getCluesFrom(regionId: string): Clue[] {
+  return CLUES.filter((c) => c.fromRegion === regionId);
+}
+
+// ─────────── 尚未抵达的茶区（仅占位展示，本次不加任何实际内容） ───────────
+// 「我的茶山足迹」里要让玩家看见自己还没去过的地方，但这些茶区目前没有
+// 地点 / NPC / 茶叶 / 漫画，点击只提示「还没去过」，不进入任何页面。
+
+export interface UpcomingRegion {
+  id: string;
+  name: string;
+  icon: string;
+  accent: string;
+  hint: string;   // 尚未抵达时的一句话
+}
+
+export const UPCOMING_REGIONS: UpcomingRegion[] = [
+  { id: 'hangzhou', name: '杭州', icon: '🍃', accent: '#8fb0a8', hint: '林姑娘提过：那边要嫩芽，锅一烫就杀青。' },
+  { id: 'fuzhou', name: '福州', icon: '🌸', accent: '#d3a6ac', hint: '老陈说过：拿茶坯去窨花，茉莉香是吃进去的。' },
+  { id: 'chaozhou', name: '潮州', icon: '🌱', accent: '#b8a06a', hint: '还没人跟你提起过那里。' },
+];
+
+// ─────────── 茶区探索进度（与制茶熟练度是两个维度，不合并） ───────────
+// 探索 = 我在这里发现了多少地方；熟练度 = 我在这里做茶做到了什么程度。
+// 只用现有 metNpcs 派生，不新增访问记录系统。
+// 茶馆是进山的起点，不计入探索；未解锁的地点（茶集市）计入分母但标「未解锁」。
+
+export function regionExploration(player: Player, region: Region): { visited: number; total: number } {
+  // 茶馆是进山的起点，不计入探索；未解锁的地点（如茶集市）要等开市后才计入分母。
+  const marketOpen = isMarketUnlocked(player);
+  const targets = region.locations.filter(
+    (l) => l.id !== 'teahouse' && (l.id !== 'market' || marketOpen),
+  );
+  const visited = targets.filter((l) => l.npcIds.some((n) => player.metNpcs.includes(n))).length;
+  return { visited, total: targets.length };
+}
+
+/** 某茶区的茶叶记录：只用 madeTeas（曾经亲手做过），与背包无关。 */
+export function regionTeaIds(regionId: string): string[] {
+  return TEAS.filter((t) => t.regionId === regionId).map((t) => t.id);
+}

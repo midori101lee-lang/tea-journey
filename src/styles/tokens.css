@@ -1,0 +1,21 @@
+:root {
+  /* 宣纸与墨 */
+  --paper: #f6f1e7;
+  --paper-2: #fbf7ef;
+  --ink: #2e2a26;
+  --ink-2: #6b6259;
+  --ink-3: #9a9084;
+
+  /* 武夷山主题色（Region.theme 覆盖用） */
+  --bamboo: #6e8c6a;
+  --bud: #a8c58a;
+  --liquor: #c9a24b;
+  --seal: #b4453a;
+  --ochre: #c8a98a;
+  --cliff: #a85b3c;   /* 丹霞赭红 */
+  --rock: #5a5750;    /* 岩骨灰 */
+
+  --radius: 10px;
+  --sans: system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
+  --serif: "Songti SC", "STSong", "Noto Serif SC", serif;
+}
