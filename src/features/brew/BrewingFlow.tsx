@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ProcessingResult, Difficulty, BrewOutcome } from '../../core/types';
+import type { ProcessingResult, Difficulty, BrewOutcome, Grade } from '../../core/types';
 import { GaiwanSvg, KettleSvg, GongDaoSvg, TeaLeafSvg } from '../../components/art/Art';
+import { teaVisual, brewLiquor } from '../../core/data/teaVisuals';
 
 interface Props {
   result: ProcessingResult;
@@ -30,8 +31,8 @@ const STEPS = [
 const WEIGHTS: Record<string, number> = { warm: 6, discard: 0, add: 8, pour: 12, smell: 0, steep: 40, taste: 0 };
 
 // 舞台固定尺寸（与 base.css .brew-stage max-width 一致），便于坐标计算。
-const GAICENTER = { x: 160, y: 202 }; // 盖碗中心（舞台坐标）
-const KETTLE = { w: 72, h: 66 };
+const GAICENTER = { x: 160, y: 202 }; // 盖碗中心（舞台坐标，保持不动以保护出汤逻辑）
+const KETTLE = { w: 84, h: 76 };
 const NEAR = 70;
 
 function teaLabel(id: string) {
@@ -120,10 +121,10 @@ export default function BrewingFlow({ result, difficulty, onDone }: Props) {
   switch (idx) {
     case 0: return <><div>{header('温杯', STEPS[0].hint)}</div><WarmPhase casual={casual} onAdvance={addMark} /></>;
     case 1: return <><div>{header('倒掉温杯水', STEPS[1].hint)}</div><DiscardPhase onAdvance={addMark} /></>;
-    case 2: return <><div>{header('投茶', STEPS[2].hint)}</div><AddPhase onAdvance={addMark} /></>;
-    case 3: return <><div>{header('注水', STEPS[3].hint)}</div><PourPhase casual={casual} onAdvance={addMark} /></>;
-    case 4: return <><div>{header('揭盖 · 闻香', STEPS[4].hint)}</div><SmellPhase teaName={teaName} onAdvance={addMark} /></>;
-    case 5: return <><div>{header('出汤', STEPS[5].hint)}</div><SteepPhase casual={casual} onAdvance={addMark} /></>;
+    case 2: return <><div>{header('投茶', STEPS[2].hint)}</div><AddPhase teaId={result.teaId} grade={result.grade} onAdvance={addMark} /></>;
+    case 3: return <><div>{header('注水', STEPS[3].hint)}</div><PourPhase casual={casual} teaId={result.teaId} grade={result.grade} onAdvance={addMark} /></>;
+    case 4: return <><div>{header('揭盖 · 闻香', STEPS[4].hint)}</div><SmellPhase teaId={result.teaId} grade={result.grade} onAdvance={addMark} /></>;
+    case 5: return <><div>{header('出汤', STEPS[5].hint)}</div><SteepPhase casual={casual} teaId={result.teaId} grade={result.grade} onAdvance={addMark} /></>;
     case 6: return <TastePhase marks={marks} brewScore={brewScore()} result={result} teaName={teaName} onDone={onDone} />;
     default: return null;
   }
@@ -177,7 +178,7 @@ function DiscardPhase({ onAdvance }: { onAdvance: (m: BrewMark) => void }) {
   return (
     <div className="brew-stage" ref={stageRef}>
       <div className="brew-item" style={{ left: pos.x, top: pos.y, transform: `rotate(${tilt * 34}deg)`, transformOrigin: '50% 90%' }} {...bind}>
-        <GaiwanSvg width={120} liquor={pour < 1 ? '#ddd0b6' : undefined} />
+        <GaiwanSvg width={150} liquor={pour < 1 ? '#ddd0b6' : undefined} />
       </div>
       {pouring && !done && <div className="brew-splash" style={{ left: pos.x + 40, top: pos.y + 70, opacity: 0.8 }} />}
       <div className="brew-foot">
@@ -189,23 +190,24 @@ function DiscardPhase({ onAdvance }: { onAdvance: (m: BrewMark) => void }) {
 }
 
 /** 投茶：拖茶青入碗 */
-function AddPhase({ onAdvance }: { onAdvance: (m: BrewMark) => void }) {
+function AddPhase({ teaId, grade, onAdvance }: { teaId: string; grade: Grade; onAdvance: (m: BrewMark) => void }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const { pos, dragging, bind } = useDrag(stageRef, { x: 120, y: 14 });
   const [inBowl, setInBowl] = useState(false);
   const center = { x: pos.x + 18, y: pos.y + 18 };
   const over = Math.hypot(center.x - GAICENTER.x, center.y - GAICENTER.y) < NEAR;
+  const leafColor = teaVisual(teaId).leafColor;
   function drop() {
     if (over) setInBowl(true);
   }
 
   return (
     <div className="brew-stage" ref={stageRef}>
-      <div className="brew-gaiwantarget"><GaiwanSvg width={120} leaves={inBowl} /></div>
+      <div className="brew-gaiwantarget"><GaiwanSvg width={150} leaves={inBowl} leafColor={leafColor} /></div>
       {!inBowl && (
         <div className="brew-item" style={{ left: pos.x, top: pos.y }} {...bind} onPointerUp={(e) => { bind.onPointerUp(e); drop(); }}>
           <div style={{ display: 'flex', gap: 2 }}>
-            <TeaLeafSvg size={34} /><TeaLeafSvg size={30} /><TeaLeafSvg size={32} />
+            <TeaLeafSvg size={40} color={leafColor} /><TeaLeafSvg size={36} color={leafColor} /><TeaLeafSvg size={38} color={leafColor} />
           </div>
         </div>
       )}
@@ -218,11 +220,12 @@ function AddPhase({ onAdvance }: { onAdvance: (m: BrewMark) => void }) {
 }
 
 /** 注水：拖茶壶控水量 → 好了 */
-function PourPhase({ casual, onAdvance }: { casual: boolean; onAdvance: (m: BrewMark) => void }) {
+function PourPhase({ casual, teaId, grade, onAdvance }: { casual: boolean; teaId: string; grade: Grade; onAdvance: (m: BrewMark) => void }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const { pos, bind } = useDrag(stageRef, { x: 26, y: 12 });
   const kc = { x: pos.x + KETTLE.w / 2, y: pos.y + KETTLE.h / 2 };
   const near = Math.hypot(kc.x - GAICENTER.x, kc.y - GAICENTER.y) < NEAR;
+  const leafColor = teaVisual(teaId).leafColor;
   const [amount, setAmount] = useState(0);
   const [locked, setLocked] = useState(false);
   const [lockedNote, setLockedNote] = useState('');
@@ -244,7 +247,7 @@ function PourPhase({ casual, onAdvance }: { casual: boolean; onAdvance: (m: Brew
 
   return (
     <div className="brew-stage" ref={stageRef}>
-      <div className="brew-gaiwantarget"><GaiwanSvg width={120} leaves liquor={amount > 0.05 ? `rgb(${Math.round(206 - amount * 96)},${Math.round(172 - amount * 70)},${Math.round(92 - amount * 40)})` : undefined} /></div>
+      <div className="brew-gaiwantarget"><GaiwanSvg width={150} leaves liquor={amount > 0.05 ? brewLiquor(teaId, amount * 0.4, grade) : undefined} leafColor={leafColor} /></div>
       {near && !locked && <div className="brew-splash" style={{ left: GAICENTER.x - 6, top: 150 }} />}
       <div className="brew-item" style={{ left: pos.x, top: pos.y }} {...bind}>
         <KettleSvg width={KETTLE.w} pour={near && !locked} />
@@ -259,7 +262,7 @@ function PourPhase({ casual, onAdvance }: { casual: boolean; onAdvance: (m: Brew
 }
 
 /** 揭盖 · 闻香：拖盖 → 揭盖 → 闻香 */
-function SmellPhase({ teaName, onAdvance }: { teaName: string; onAdvance: (m: BrewMark) => void }) {
+function SmellPhase({ teaId, grade, onAdvance }: { teaId: string; grade: Grade; onAdvance: (m: BrewMark) => void }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const { pos, bind } = useDrag(stageRef, { x: 130, y: 120 });
   const [open, setOpen] = useState(false);
@@ -267,13 +270,15 @@ function SmellPhase({ teaName, onAdvance }: { teaName: string; onAdvance: (m: Br
   const lifted = pos.x < 86 || pos.x > 174 || pos.y < 96;
   useEffect(() => { if (lifted) setOpen(true); }, [lifted]);
 
-  const note = teaName === '水仙' ? '香气沉下来，带着一点甜。'
-    : teaName === '景区王霸茶' ? '香气淡淡的，不怎么明显。'
-    : '香气一下子扑了上来。';
+  const note =
+    teaId === 'rougui' ? '桂皮般的香气一下子窜了出来。'
+    : teaId === 'shuixian' ? '清幽的兰花香，慢慢浮了出来。'
+    : teaId === 'dahongpao' ? '香气不急着冒出来，倒像是慢慢铺开。'
+    : '香气淡淡的，不怎么明显。';
 
   return (
     <div className="brew-stage" ref={stageRef}>
-      <div className="brew-gaiwantarget"><GaiwanSvg width={120} leaves steam={open} liquor="#c9a24b" lid={!open} /></div>
+      <div className="brew-gaiwantarget"><GaiwanSvg width={150} leaves steam={open} liquor={brewLiquor(teaId, 0.55, grade)} lid={!open} leafColor={teaVisual(teaId).leafColor} /></div>
       {!open && (
         <div className="brew-item" style={{ left: pos.x, top: pos.y }} {...bind}>
           <svg width="58" height="40" viewBox="0 0 58 40">
@@ -295,7 +300,7 @@ function SmellPhase({ teaName, onAdvance }: { teaName: string; onAdvance: (m: Br
  * 汤色随时间由浅变深（轻量模拟），玩家观察时机主动点击。
  * 反馈三句（无温度数值）：香气还没完全打开 / 出汤利落 / 这一泡更浓了些。
  */
-function SteepPhase({ casual, onAdvance }: { casual: boolean; onAdvance: (m: BrewMark) => void }) {
+function SteepPhase({ casual, teaId, grade, onAdvance }: { casual: boolean; teaId: string; grade: Grade; onAdvance: (m: BrewMark) => void }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const { pos, bind } = useDrag(stageRef, { x: 100, y: 150 });
   const tilt = Math.max(-0.5, Math.min(0.5, (pos.x - 100) / 90));
@@ -303,14 +308,20 @@ function SteepPhase({ casual, onAdvance }: { casual: boolean; onAdvance: (m: Bre
   const [t, setT] = useState(0.2);
   const [locked, setLocked] = useState(false);
   const [cup, setCup] = useState(0);
-  useEffect(() => { if (!locked) setT((v) => Math.min(1, v + (casual ? 0.006 : 0.008))); }, [locked, casual]);
+  // 汤色随时间由浅变深：用 setInterval 持续让 t 增长，直到玩家点【出汤】锁定（locked=true 时清除）。
+  // 旧写法把 t 漏在依赖外，导致 t 只增一次就冻结：汤色 meter 永远停在 20%、评分永远 off，出汤关体感"卡住不前进"。
+  useEffect(() => {
+    if (locked) return;
+    const id = setInterval(() => setT((v) => Math.min(1, v + (casual ? 0.006 : 0.008))), 90);
+    return () => clearInterval(id);
+  }, [locked, casual]);
   useEffect(() => {
     if (!pouring || locked) return;
     const id = setInterval(() => setCup((v) => Math.min(1, v + 0.05)), 70);
     return () => clearInterval(id);
   }, [pouring, locked]);
 
-  const liquorColor = `rgb(${Math.round(206 - t * 110)},${Math.round(172 - t * 78)},${Math.round(92 - t * 44)})`;
+  const liquorColor = brewLiquor(teaId, t, grade);
 
   function lock() {
     setLocked(true);
@@ -324,9 +335,9 @@ function SteepPhase({ casual, onAdvance }: { casual: boolean; onAdvance: (m: Bre
   return (
     <div className="brew-stage" ref={stageRef}>
       <div className="brew-item" style={{ left: pos.x, top: pos.y, transform: `rotate(${tilt * 32}deg)`, transformOrigin: '50% 90%' }} {...bind}>
-        <GaiwanSvg width={120} liquor={locked ? undefined : liquorColor} />
+        <GaiwanSvg width={150} liquor={locked ? undefined : liquorColor} leafColor={teaVisual(teaId).leafColor} />
       </div>
-      <div className="brew-gongdao" style={{ left: 8, top: 150 }}><GongDaoSvg width={84} liquor={cup > 0 ? liquorColor : undefined} /></div>
+      <div className="brew-gongdao" style={{ left: 6, top: 150 }}><GongDaoSvg width={104} liquor={cup > 0 ? liquorColor : undefined} /></div>
       {pouring && !locked && <div className="brew-splash" style={{ left: pos.x + 44, top: pos.y + 70, opacity: 0.85 }} />}
       <div className="brew-foot">
         <div className="brew-meter"><i style={{ width: `${t * 100}%` }} /></div>
@@ -343,9 +354,7 @@ function TastePhase({ marks, brewScore, result, teaName, onDone }: {
   marks: BrewMark[]; brewScore: number; result: ProcessingResult; teaName: string; onDone: (o: BrewOutcome) => void;
 }) {
   const steep = marks.find((m) => m.key === 'steep');
-  const light = steep?.note.includes('没完全打开');
-  const dark = steep?.note.includes('更浓');
-  const liquorColor = light ? '#ddce9a' : dark ? '#8a5a2a' : '#c9a24b';
+  const liquorColor = brewLiquor(result.teaId, 1, result.grade);
   const [acted, setActed] = useState<'none' | 'smell' | 'sip'>('none');
 
   return (
@@ -353,8 +362,8 @@ function TastePhase({ marks, brewScore, result, teaName, onDone }: {
       <div style={{ fontFamily: 'var(--serif)', fontSize: 16, color: 'var(--ink-2)' }}>{teaName} · 盖碗泡法　{STEPS.length}/{STEPS.length}</div>
       <div style={{ fontFamily: 'var(--serif)', fontSize: 22, marginTop: 4 }}>品饮</div>
       <p className="hint">{STEPS[6].hint}</p>
-      <div className="brew-stage" style={{ height: 200 }}>
-        <div className="brew-gaiwantarget"><GaiwanSvg width={120} leaves steam liquor={liquorColor} /></div>
+      <div className="brew-stage" style={{ height: 220 }}>
+        <div className="brew-gaiwantarget"><GaiwanSvg width={150} leaves steam liquor={liquorColor} leafColor={teaVisual(result.teaId).leafColor} /></div>
       </div>
       {steep && <p className="note" style={{ marginTop: 8 }}>{steep.note}</p>}
       <div className="scene-foot">

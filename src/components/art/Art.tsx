@@ -102,8 +102,8 @@ export function SunMoonIcon({ sun }: { sun: boolean }) {
 }
 
 /** 盖碗（工夫茶冲泡）：盖 + 碗 + 托。支持泡茶状态：叶/汤/汽/揭盖 */
-export function GaiwanSvg({ width = 150, fill = '#efe7d6', liquor, leaves = false, steam = false, lid = true }: {
-  width?: number; fill?: string; liquor?: string; leaves?: boolean; steam?: boolean; lid?: boolean;
+export function GaiwanSvg({ width = 150, fill = '#efe7d6', liquor, leaves = false, steam = false, lid = true, leafColor = '#5c4a34' }: {
+  width?: number; fill?: string; liquor?: string; leaves?: boolean; steam?: boolean; lid?: boolean; leafColor?: string;
 }) {
   return (
     <svg width={width} height={width * 0.86} viewBox="0 0 150 130">
@@ -120,7 +120,7 @@ export function GaiwanSvg({ width = 150, fill = '#efe7d6', liquor, leaves = fals
       <path d="M30 70 Q75 60 120 70 L108 102 Q75 116 42 102 Z" fill={fill} stroke="#8a6f52" strokeWidth="1.6" />
       {/* 干茶 */}
       {leaves && (
-        <g fill="#5c4a34" stroke="#2e2a26" strokeWidth="0.3">
+        <g fill={leafColor} stroke="#2e2a26" strokeWidth="0.3">
           <ellipse cx="62" cy="92" rx="9" ry="3.4" transform="rotate(-12 62 92)" />
           <ellipse cx="82" cy="94" rx="10" ry="3.6" transform="rotate(10 82 94)" />
           <ellipse cx="72" cy="98" rx="8" ry="3" />

@@ -433,9 +433,9 @@ body {
 .brew-stage {
   position: relative;
   width: 100%;
-  max-width: 320px;
+  max-width: 380px;
   margin: 4px auto 0;
-  height: 250px;
+  height: 320px;
   background: #f4efe2;
   border: 1px solid #e0d6bf;
   border-radius: 12px;
@@ -450,14 +450,14 @@ body {
   z-index: 4;
 }
 .brew-item:active { cursor: grabbing; }
-.brew-gaiwantarget { position: absolute; left: 100px; top: 150px; z-index: 2; }
+.brew-gaiwantarget { position: absolute; left: 85px; top: 150px; z-index: 2; }
 .brew-gongdao { position: absolute; z-index: 2; }
 .brew-splash {
   position: absolute; width: 12px; height: 12px; border-radius: 50%;
   background: radial-gradient(circle, #cfe6f2 0%, #9fc0d8 70%, rgba(159,192,216,0) 100%);
   pointer-events: none; z-index: 3;
 }
-.brew-foot { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.brew-foot { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
 .brew-meter { height: 10px; border-radius: 5px; background: #e8e0d0; overflow: hidden; }
 .brew-meter > i { display: block; height: 100%; background: var(--liquor); transition: width .12s; }
 .brew-tip { font-size: 13px; color: var(--ink-2); margin: 0; }
