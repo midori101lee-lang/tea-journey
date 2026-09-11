@@ -6,6 +6,8 @@
 import type { ReactNode } from 'react';
 import { SCENES } from './scenes';
 import { NpcPortrait } from './art/NpcPortrait';
+import { WeatherOverlay } from './Weather';
+import { currentWeatherId } from '../core/data/weather';
 import { useGame } from '../store/gameStore';
 
 export function NpcStage({
@@ -19,7 +21,8 @@ export function NpcStage({
   showFigure?: boolean;
   children?: ReactNode;
 }) {
-  const { activeEncounter } = useGame();
+  const { activeEncounter, player } = useGame();
+  const weatherId = currentWeatherId(player);
   // 偶遇激活时，当前场景主线 NPC（人物 + 姓名）与主线对话浮层必须暂时隐藏，
   // 但「背景」保留。两条 Layer 互斥：Encounter Layer 接管显示，主线回到普通状态才恢复。
   // 这样阿秀 / 老陈 / 小满等主线角色不会与偶遇 NPC 同时出现、不会两套对话并存。
@@ -43,6 +46,7 @@ export function NpcStage({
         ) : Scene ? (
           <Scene />
         ) : null}
+        <WeatherOverlay id={weatherId} />
       </div>
       {showFigure && npcId && fig && !encounterActive && (
         <div

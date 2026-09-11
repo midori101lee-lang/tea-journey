@@ -2,6 +2,8 @@ import { getRegion, isMarketUnlocked } from '../../core/data/regions';
 import { useGame } from '../../store/gameStore';
 import type { Scene } from '../../store/gameStore';
 import type { LocationId } from '../../core/types';
+import { WeatherBadge } from '../../components/Weather';
+import { currentWeatherId } from '../../core/data/weather';
 
 export default function MapView() {
   const { go, player, advanceDay, visitMountain } = useGame();
@@ -14,6 +16,7 @@ export default function MapView() {
   return (
     <div>
       <div className="hint">武夷山 · 轻量探索 · 第 {player.regionDays[player.currentRegion] ?? 1} 天</div>
+      <WeatherBadge id={currentWeatherId(player)} showDesc />
       <h2 className="h-serif" style={{ margin: '2px 0 10px' }}>今天去哪儿？</h2>
       <div style={{ display: 'grid', gap: 12 }}>
         {order.map((id) => {

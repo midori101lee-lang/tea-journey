@@ -17,10 +17,11 @@ import ComicView from '../features/journal/ComicView';
 import SouvenirView from '../features/journal/SouvenirView';
 import MarketView from '../features/market/MarketView';
 import EncounterLayer from '../features/encounter/EncounterLayer';
+import { NpcWeatherAside } from '../components/Weather';
 
 /** Web 版：武夷山第一日完整游历（茶馆→茶园→制茶→结果→泡茶→母树→线索→手账） */
 export default function WebApp() {
-  const { scene, activeEncounter, go, player, startMaking, finishBrewing, setFlag, lastResult, difficulty, drinkNotice } = useGame();
+  const { scene, activeEncounter, go, player, startMaking, finishBrewing, setFlag, lastResult, difficulty, drinkNotice, zhouBoAdvice } = useGame();
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   // 茶桌：用茶篓里已有的茶泡一壶（库存 → 泡茶入口）
   const [brewPickerOpen, setBrewPickerOpen] = useState(false);
@@ -62,6 +63,7 @@ export default function WebApp() {
             {player.flags.heard_about_hangzhou && <p className="hint">🧭 杭州的线索，记在茶游记里了。</p>}
           </div>
         )}
+        {!activeEncounter && revealed['laochen'] && <NpcWeatherAside npcId="laochen" player={player} />}
         {/* 偶遇层：作为 .scene 子层，NPC 立绘相对场景定位，不跑到页面外 */}
         <EncounterLayer />
       </div>
@@ -78,6 +80,7 @@ export default function WebApp() {
         {revealed['axiu'] && !activeEncounter && (
           <TeaSelect onPick={(id) => startMaking(id)} />
         )}
+        {!activeEncounter && revealed['axiu'] && <NpcWeatherAside npcId="axiu" player={player} />}
         <EncounterLayer />
       </div>
     );
@@ -124,15 +127,22 @@ export default function WebApp() {
   }
 
   if (scene === 'teatable') {
+    const advice = zhouBoAdvice;
     return (
       <div className="scene">
         <BackButton />
+        {!activeEncounter && revealed['zhoubo'] && <NpcWeatherAside npcId="zhoubo" player={player} />}
         <NpcDialog key="teatable-zhoubo" scene="teatable" npcId="zhoubo" onDone={() => { setFlag('tea_made', 1); reveal('zhoubo'); }} />
-        {revealed['zhoubo'] && (
+        {revealed['zhoubo'] && advice && (
           <div className="scene-foot">
-            <p className="hint">「茶做完了。」周伯抬眼望了望窗外，「山还没逛完——有个地方你该去看看。九龙窠的那几株老茶树，大红袍的故事，就从那儿起。」</p>
-            <button className="btn btn-primary" onClick={() => go('mothertree')}>去九龙窠</button>
-            <button className="btn" onClick={() => go('journal')}>看茶游记</button>
+            <p className="hint">周伯：「{advice.comment}」</p>
+            {advice.suggestion && <p className="hint">{advice.suggestion}</p>}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {advice.action && (
+                <button className="btn btn-primary" onClick={() => go(advice.action!.target)}>{advice.action!.label}</button>
+              )}
+              <button className="btn" onClick={() => go('journal')}>看茶游记</button>
+            </div>
           </div>
         )}
         {drinkNotice && (

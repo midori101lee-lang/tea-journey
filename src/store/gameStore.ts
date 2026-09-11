@@ -5,7 +5,9 @@ import { loadSave, persist } from '../core/storage/storage';
 import { MARKET_REQUIRED_TEAS } from '../core/data/regions';
 import { getTea } from '../core/data/teas';
 import { getTeaWare } from '../core/data/teaWares';
+import { getZhouBoAfterTeaAdvice } from '../core/data/zhouBoAdvice';
 import type { RolledEncounter } from '../features/encounter/encounterEngine';
+import type { ZhouBoAdvice } from '../core/data/zhouBoAdvice';
 
 /** 入篓/入背包的通用堆叠逻辑（制茶结果 与 偶遇赠茶 共用）。 */
 function pushStack(
@@ -97,6 +99,8 @@ interface GameStore {
   brewingStackId: string | null;
   /** 泡完后的一句轻量库存反馈（瞬时 UI 态，不写盘）。 */
   drinkNotice: string | null;
+  /** 周伯品茶后给出的上下文建议（瞬时 UI 态，不写盘；离开茶桌即清除）。 */
+  zhouBoAdvice: ZhouBoAdvice | null;
   currentDialogueIds: string[]; // 当前场景要播的对话 id
   /** 当前场景里正发生的偶遇（瞬时 UI 态，不写盘；刷新不恢复）。 */
   activeEncounter: RolledEncounter | null;
@@ -146,6 +150,7 @@ export const useGame = create<GameStore>((set, get) => ({
   lastBrew: null,
   brewingStackId: null,
   drinkNotice: null,
+  zhouBoAdvice: null,
   currentDialogueIds: [],
   activeEncounter: null,
   pendingDayIntro: null,
@@ -157,6 +162,8 @@ export const useGame = create<GameStore>((set, get) => ({
       scene: s,
       sceneData: data,
       navHistory: pushHist(st.navHistory, { scene: st.scene, data: st.sceneData }),
+      // 离开茶桌时清除周伯上一条品茶建议，避免回看时残留旧建议
+      zhouBoAdvice: s === 'teatable' ? st.zhouBoAdvice : null,
     };
   }),
 
@@ -284,6 +291,10 @@ export const useGame = create<GameStore>((set, get) => ({
       const stack = st.player.inventory.find((s) => s.id === id);
       const inventory = consumeOne(st.player.inventory, id);
       const next = { ...st.player, inventory };
+      // 周伯品茶后的上下文建议：纯逻辑模块计算，不在此写业务判断。
+      const advice = stack
+        ? getZhouBoAfterTeaAdvice({ teaId: stack.teaId, grade: stack.grade, brewScore: o.brewScore, player: st.player })
+        : null;
       persist(next);
       set({
         lastBrew: o,
@@ -291,9 +302,10 @@ export const useGame = create<GameStore>((set, get) => ({
         player: next,
         brewingStackId: null,
         drinkNotice: stack ? `这一泡喝完了——${getTea(stack.teaId).name} 少了一包。` : null,
+        zhouBoAdvice: advice,
       });
     } else {
-      set({ lastBrew: o, scene: 'teatable' });
+      set({ lastBrew: o, scene: 'teatable', zhouBoAdvice: null });
     }
   },
 
@@ -318,6 +330,7 @@ export const useGame = create<GameStore>((set, get) => ({
       currentTeaId: stack.teaId,
       brewingStackId: stack.id,
       drinkNotice: null,
+      zhouBoAdvice: null,
       scene: 'brew',
       navHistory: pushHist(st.navHistory, { scene: st.scene, data: st.sceneData }),
     }));

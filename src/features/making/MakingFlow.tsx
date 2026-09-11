@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { StepOutcome, StepId, StepParams, Difficulty, BasketQuality } from '../../core/types';
 import { STEP_META, getRecipe } from '../../core/data/teas';
 import { computeResult } from '../../core/making/scoring';
+import { getWeatherForDay, makingRate, zuoqingWeather } from '../../core/data/weather';
 import { useGame } from '../../store/gameStore';
 import PickingStep from './steps/PickingStep';
 import DaoqingStep from './steps/DaoqingStep';
@@ -25,6 +26,11 @@ export default function MakingFlow() {
   const [index, setIndex] = useState(0);
   const [outcomes, setOutcomes] = useState<StepOutcome[]>([]);
   const [basketQuality, setBasketQuality] = useState<BasketQuality | undefined>(undefined);
+
+  // 天气：复用现有 day + currentRegion，确定性（同一天同一天气），仅轻微影响倒青/做青节奏。
+  const weatherId = getWeatherForDay(player.day, player.currentRegion || 'wuyishan');
+  const weatherRate = makingRate(weatherId);
+  const zuoqingW = zuoqingWeather(weatherId);
 
   const step = steps[index];
   const meta = STEP_META[step];
@@ -66,8 +72,8 @@ export default function MakingFlow() {
           onDone={handle}
         />
       )}
-      {step === 'daoqing' && <DaoqingStep params={params} difficulty={difficulty} onDone={handle} />}
-      {step === 'zuoqing' && <ZuoqingStep params={params} difficulty={difficulty} onDone={handle} />}
+      {step === 'daoqing' && <DaoqingStep params={params} difficulty={difficulty} weatherRate={weatherRate} onDone={handle} />}
+      {step === 'zuoqing' && <ZuoqingStep params={params} difficulty={difficulty} weather={zuoqingW} onDone={handle} />}
       {step === 'chao-rou' && <ChaoRouStep params={params} difficulty={difficulty} onDone={handle} />}
       {step === 'roasting' && (
         <RoastingStep

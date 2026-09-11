@@ -447,7 +447,9 @@ function TastePhase({ marks, brewScore, result, teaName, ware, onDone }: {
       <div style={{ fontFamily: 'var(--serif)', fontSize: 22, marginTop: 4 }}>品饮</div>
       <p className="hint">{STEPS[6].hint}</p>
       <div className="brew-stage" style={{ height: 220 }}>
-        <div className="brew-gaiwantarget"><BrewWare ware={ware} teaId={result.teaId} grade={result.grade} level={1} leaves steam leafColor={teaVisual(result.teaId).leafColor} /></div>
+        <div className="brew-gaiwantarget" style={{ position: 'relative', left: 'auto', top: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+          <BrewWare ware={ware} teaId={result.teaId} grade={result.grade} level={1} leaves steam leafColor={teaVisual(result.teaId).leafColor} />
+        </div>
       </div>
       <div className="brew-eval" style={{ marginTop: 8 }}>
         <p className="eval-head" style={{ fontFamily: 'var(--serif)', fontSize: 17, margin: '2px 0 4px', color: 'var(--ink-1)' }}>{evalResult.headline}</p>

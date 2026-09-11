@@ -5,6 +5,8 @@ import { TeaLeafSvg, SunMoonIcon } from '../../../components/art/Art';
 interface Props {
   params: StepParams;
   difficulty: Difficulty;
+  /** 天气对倒青节奏的轻微倍率（晴略快 / 雨略慢），默认 1，不显示数值。 */
+  weatherRate?: number;
   onDone: (o: StepOutcome) => void;
 }
 
@@ -14,7 +16,7 @@ type Mode = 'sun' | 'shade';
  * 倒青 / 萎凋：复式萎凋「两晒两晾」
  * 晒 → 叶态变软；晾 → 青气下降。玩家在两者间判断切换，两轮后收青。
  */
-export default function DaoqingStep({ params, difficulty, onDone }: Props) {
+export default function DaoqingStep({ params, difficulty, weatherRate = 1, onDone }: Props) {
   const targetRounds = params.rounds ?? 2;
   const [soft, setSoft] = useState(18);
   const [green, setGreen] = useState(78);
@@ -31,12 +33,12 @@ export default function DaoqingStep({ params, difficulty, onDone }: Props) {
     const id = setInterval(() => {
       const s = state.current;
       if (s.mode === 'sun') {
-        s.soft = Math.min(100, s.soft + (casual ? 7 : 5.5));
-        s.green = Math.max(0, s.green - (casual ? 0.8 : 0.5));
+        s.soft = Math.min(100, s.soft + (casual ? 7 : 5.5) * weatherRate);
+        s.green = Math.max(0, s.green - (casual ? 0.8 : 0.5) * weatherRate);
         s.shadeTooLong = 0;
       } else {
-        s.soft = Math.max(0, s.soft - (casual ? 1.6 : 2.4));
-        s.green = Math.max(0, s.green - (casual ? 5 : 4));
+        s.soft = Math.max(0, s.soft - (casual ? 1.6 : 2.4) * weatherRate);
+        s.green = Math.max(0, s.green - (casual ? 5 : 4) * weatherRate);
         s.shadeTooLong += 0.1;
       }
       setSoft(s.soft);

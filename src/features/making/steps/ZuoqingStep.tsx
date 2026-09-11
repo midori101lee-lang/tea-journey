@@ -5,15 +5,15 @@ import { SieveSvg } from '../../../components/art/Art';
 interface Props {
   params: StepParams;
   difficulty: Difficulty;
+  /**
+   * 天气对做青的轻微影响（来自天气系统，确定性、无 random）：
+   *   force —— 理想摇青力度区间偏移（雾/雨略往外推，让玩家觉得“叶子更不好伺候”）
+   *   decay —— 青气消退速率倍率（晴快 / 雨慢），不显示数值
+   *   label —— 一句天气随感（如「今天下着小雨」）
+   */
+  weather: { force: number; decay: number; label: string };
   onDone: (o: StepOutcome) => void;
 }
-
-const WEATHERS = [
-  { id: 'sunny', label: '今天天晴', force: 0.0, decay: 1.0 },
-  { id: 'cloudy', label: '今天阴', force: 0.02, decay: 0.95 },
-  { id: 'windy-north', label: '今天有北风', force: -0.05, decay: 1.15 },
-  { id: 'humid-rain', label: '今天返潮', force: 0.05, decay: 0.85 },
-] as const;
 
 // ─────────── 游戏调优参数（内部，不暴露给玩家，非真实制茶标准） ───────────
 const EDGE_RATE = 0.16;    // 红边增长（合适档，每秒）
@@ -31,7 +31,7 @@ type Tier = 'light' | 'fit' | 'hasty';
  * V0.3 定稿回归：玩家只看叶子的三个变化（红边 / 青气 / 叶态）与一句自然语言，
  * 不出现任何数字、百分比、速度值或「最佳区间」。
  */
-export default function ZuoqingStep({ params, difficulty, onDone }: Props) {
+export default function ZuoqingStep({ params, difficulty, weather, onDone }: Props) {
   const casual = difficulty === 'casual';
   const targetRounds = params.rounds ?? 3;
   const base0 = params.idealShakeForce ?? [0.45, 0.72];
@@ -39,10 +39,9 @@ export default function ZuoqingStep({ params, difficulty, onDone }: Props) {
   const shrink = params.basketQuality === 'rough' ? 0.06 : params.basketQuality === 'normal' ? 0.025 : 0;
   const base: [number, number] = [base0[0] + shrink / 2, base0[1] - shrink / 2];
 
-  const weather = useRef(WEATHERS[Math.floor(Math.random() * WEATHERS.length)]);
   const band = useRef<[number, number]>([
-    Math.max(0.2, base[0] + weather.current.force),
-    Math.min(0.95, base[1] + weather.current.force),
+    Math.max(0.2, base[0] + weather.force),
+    Math.min(0.95, base[1] + weather.force),
   ]);
 
   const [phase, setPhase] = useState<Phase>('observe');
@@ -123,7 +122,7 @@ export default function ZuoqingStep({ params, difficulty, onDone }: Props) {
 
     if (tier === 'fit') {
       s.edge = Math.min(1, s.edge + EDGE_RATE * step);
-      s.green = Math.max(0, s.green - GREEN_RATE * step * weather.current.decay);
+      s.green = Math.max(0, s.green - GREEN_RATE * step * weather.decay);
       s.soft = Math.min(100, s.soft + SOFT_RATE * step);
       setNote('这一轮摇得正好。');
     } else if (tier === 'hasty') {
@@ -231,7 +230,7 @@ export default function ZuoqingStep({ params, difficulty, onDone }: Props) {
     <div>
       <div style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>做青 · 看青做青</div>
       <p className="hint">
-        {weather.current.label}。按住水筛画圈摇青，松手静置走水。摇够了就收，没有标准答案。
+        {weather.label}。按住水筛画圈摇青，松手静置走水。摇够了就收，没有标准答案。
       </p>
 
       <div
