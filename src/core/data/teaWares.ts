@@ -71,3 +71,16 @@ export const getTeaWare = (id: string): TeaWare | undefined =>
 export function ownedWareOfType(owned: string[], type: TeaWareKind): TeaWare | undefined {
   return MARKET_TEA_WARES.find((w) => owned.includes(w.id) && w.type === type);
 }
+
+/** 「还没买过任何茶具」时的默认泡茶容器：茶桌上常备的素盖碗（内联 SVG 绘制，非商品、不进收藏/出售）。
+ *  章节推荐使用某种茶具 ≠ 玩家自动拥有——白瓷盖碗等仍需在茶集市购买后才可选。 */
+export const DEFAULT_BREW_WARE: TeaWare = {
+  id: 'default-gaiwan',
+  name: '素盖碗',
+  price: 0,
+  rarity: 'common',
+  type: 'gaiwan',
+  usableForBrew: true,
+  description: '茶桌上常备的一只素盖碗，虽然朴素，泡茶够用。',
+  asset: '', // 空 = 由 BrewWare 用内联 SVG 绘制（GaiwanSvg），不加载位图
+};

@@ -13,6 +13,8 @@ export interface TeaRegionCard {
   teas: string;       // 代表茶（展示文案，如「肉桂 · 水仙 · 大红袍」）
   image: string;      // 已解析的图片 URL（BASE_URL + public 相对路径）
   unlocked: boolean;  // 当前是否可进入；解锁逻辑沿用项目既有状态（首版仅武夷山）
+  /** 解锁 flag：存在时忽略静态 unlocked，改由 player.flags[unlockFlag] 决定（用于章节解锁，如杭州）。 */
+  unlockFlag?: string;
   /** 对应 REGIONS 的 id；未实装的茶区（杭州/福州/潮州）留空，点击只提示未解锁。 */
   regionId?: string;
 }
@@ -35,7 +37,11 @@ export const TEA_WORLD_REGIONS: TeaRegionCard[] = [
     impression: '西湖春色里的茶香',
     teas: '西湖龙井 · 九曲红梅',
     image: base + 'assets/teaworld/杭州.jpg',
+    // 章节解锁：走完武夷山（探索 5/5）→ 回老陈茶馆 → 老陈收束 → 林姑娘杭州线索 → heard_about_hangzhou → 解锁。
+    // 不因「第一次与老陈对话」提前解锁；旧存档若已置位则保持解锁。
     unlocked: false,
+    unlockFlag: 'heard_about_hangzhou',
+    regionId: 'hangzhou',
   },
   {
     id: 'fuzhou',

@@ -194,6 +194,61 @@ const ART: Record<string, ReactElement> = {
       <path d="M66 24 q8 -2 14 2 M68 32 q10 -2 14 2" stroke="#b3a68c" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.8" />
     </g>
   ),
+
+  // ─────────── 杭州 · 九曲红梅 ───────────
+
+  // 江南茶山 + 白墙黛瓦 + 湖
+  'hz-tea-hills': (
+    <g>
+      <path d="M0 40 q16 -18 32 -6 q14 -16 30 -4 q18 -14 38 0 L100 70 L0 70 Z" fill="#c3d6bc" opacity="0.7" />
+      <path d="M0 52 q20 -12 40 -2 q18 -10 34 0 q16 -8 26 0" stroke="#9dbb7f" strokeWidth="3" fill="none" opacity="0.8" strokeLinecap="round" />
+      <path d="M0 60 q22 -10 44 -1 q20 -7 34 1" stroke="#8fae6a" strokeWidth="3" fill="none" opacity="0.75" strokeLinecap="round" />
+      <rect x="12" y="36" width="22" height="12" fill="#f2efe6" stroke={INK} strokeWidth="1" />
+      <path d="M8 36 q15 -7 30 0 L38 40 8 40 Z" fill="#6f747c" />
+      <rect x="66" y="34" width="20" height="11" fill="#f2efe6" stroke={INK} strokeWidth="1" />
+      <path d="M62 34 q14 -6 28 0 L90 38 62 38 Z" fill="#6f747c" />
+      <path d="M0 62 q30 -4 60 0 q20 3 40 0 L100 70 L0 70 Z" fill="#cfe0dd" opacity="0.9" />
+    </g>
+  ),
+
+  // 红茶工艺：叶片由绿转红（萎凋→揉捻→发酵→干燥）
+  'hongcha-flow': (
+    <g>
+      <ellipse cx="50" cy="34" rx="44" ry="12" fill="#f1e5c8" opacity="0.7" />
+      <path d="M22 34 L30 34 M41 34 L49 34 M60 34 L68 34 M79 34 L87 34" stroke={INK} strokeWidth="1" opacity="0.45" strokeLinecap="round" />
+      <path d="M30 30 l4 4 -4 4 M49 30 l4 4 -4 4 M68 30 l4 4 -4 4 M87 30 l4 4 -4 4" stroke={INK} strokeWidth="0.9" fill="none" opacity="0.45" strokeLinecap="round" />
+      <path d="M12 40 q-7 -12 0 -20 q7 8 0 20z" fill="#93b06d" stroke={INK} strokeWidth="0.9" />
+      <path d="M31 40 q-7 -12 0 -20 q7 8 0 20z" fill="#a8a860" stroke={INK} strokeWidth="0.9" />
+      <path d="M50 40 q-7 -12 0 -20 q7 8 0 20z" fill="#b98a45" stroke={INK} strokeWidth="0.9" />
+      <path d="M69 40 q-7 -12 0 -20 q7 8 0 20z" fill="#b0603a" stroke={INK} strokeWidth="0.9" />
+      <path d="M88 40 q-7 -12 0 -20 q7 8 0 20z" fill="#8f3a25" stroke={INK} strokeWidth="0.9" />
+      <path d="M10 50 L90 50" stroke={INK} strokeWidth="0.9" opacity="0.3" />
+      <path d="M10 56 q20 -4 40 -1 q18 -2 40 1" stroke="#9dbb7f" strokeWidth="2.2" fill="none" opacity="0.6" strokeLinecap="round" />
+    </g>
+  ),
+
+  // 红亮茶汤（白瓷杯 + 热气）
+  'red-liquor': (
+    <g>
+      <ellipse cx="50" cy="58" rx="26" ry="7" fill="#e6d3ab" stroke={INK} strokeWidth="1" />
+      <path d="M28 34 Q50 28 72 34 L66 56 Q50 62 34 56 Z" fill="#f5edde" stroke={INK} strokeWidth="1.1" />
+      <path d="M33 40 Q50 45 67 40 L64 55 Q50 60 36 55 Z" fill="#b24627" opacity="0.85" />
+      <path d="M40 26 q4 -8 0 -14 M52 24 q4 -9 0 -15 M64 26 q4 -8 0 -14" stroke="#c9b79c" strokeWidth="1.2" fill="none" opacity="0.7" strokeLinecap="round" />
+    </g>
+  ),
+
+  // 梅家坞：弯弯山溪 + 村舍 + 茶园
+  'meijiawu-village': (
+    <g>
+      <path d="M0 44 q18 -14 36 -4 q16 -12 34 -2 q16 -10 30 0 L100 70 L0 70 Z" fill="#c3d6bc" opacity="0.65" />
+      <rect x="30" y="34" width="24" height="13" fill="#f2efe6" stroke={INK} strokeWidth="1" />
+      <path d="M26 34 q16 -8 32 0 L56 38 26 38 Z" fill="#6f747c" />
+      <path d="M50 52 q-12 8 -6 18 M50 52 q12 6 8 18" stroke="#cfe0dd" strokeWidth="5" fill="none" strokeLinecap="round" />
+      <path d="M0 56 q20 -6 40 -1 q18 -4 34 0" stroke="#9dbb7f" strokeWidth="2.6" fill="none" opacity="0.85" strokeLinecap="round" />
+      <path d="M0 63 q22 -5 44 -1 q18 -3 34 1" stroke="#8fae6a" strokeWidth="2.6" fill="none" opacity="0.8" strokeLinecap="round" />
+      <path d="M8 50 q3 -9 0 -14 M92 50 q3 -9 0 -14" stroke={INK} strokeWidth="1" fill="none" opacity="0.3" />
+    </g>
+  ),
 };
 
 export default function ComicArt({ kind }: { kind: string }) {

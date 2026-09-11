@@ -266,6 +266,14 @@ export const ENCOUNTERS: EncounterNpc[] = [
           { speaker: '林姑娘', text: '你们这茶，摇青摇得人胳膊酸吧？' },
           { speaker: '林姑娘', text: '我们杭州可不用这么费劲。' },
         ],
+        // 茶区差异化台词：到了杭州的茶园，她讲的是龙井嫩芽那一套（机制就绪；当前杭州场景暂不接偶遇层，
+        // 她在杭州的登场走 hz-teahouse 的客居闲谈——见 dialogues.ts 的 linggu_hangzhou_chat）。
+        linesByRegion: {
+          hangzhou: [
+            { speaker: '林姑娘', text: '梅家坞的茶垄都贴着坡走，矮矮的一层，跟武夷山完全两个长法。' },
+            { speaker: '林姑娘', text: '采龙井挑嫩的，一芽一叶最好——开面叶就老了，别舍不得。' },
+          ],
+        },
         outcome: { toast: '（两个在路上的茶客，聊了两句采茶。）' },
       },
       {
@@ -296,6 +304,12 @@ export const ENCOUNTERS: EncounterNpc[] = [
           { speaker: '林姑娘', text: '我也是出来逛的，一个人走走挺好。' },
           { speaker: '林姑娘', text: '下一站打算去更远的地方看看茶。' },
         ],
+        linesByRegion: {
+          hangzhou: [
+            { speaker: '林姑娘', text: '杭州的山不高，走起来松快。山那边就是钱塘江了。' },
+            { speaker: '林姑娘', text: '杭州人喝春茶讲究一个「鲜」字——火候和手上动作，都得利落。' },
+          ],
+        },
         outcome: { toast: '（你们在山路上闲聊了两句。）' },
       },
       {

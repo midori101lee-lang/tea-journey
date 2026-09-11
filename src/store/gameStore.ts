@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import type { Player, ProcessingResult, Difficulty, BrewOutcome, Grade, TeaStack } from '../core/types';
 import { regionProficiency } from '../core/types';
 import { loadSave, persist, defaultPlayer, archiveCurrentSave, wipeActiveSave } from '../core/storage/storage';
-import { MARKET_REQUIRED_TEAS } from '../core/data/regions';
-import { getTea } from '../core/data/teas';
+import { MARKET_REQUIRED_TEAS, regionLocationScene } from '../core/data/regions';
+import { getTea, isCraftable } from '../core/data/teas';
 import { getTeaWare } from '../core/data/teaWares';
 import { getZhouBoAfterTeaAdvice } from '../core/data/zhouBoAdvice';
 import type { RolledEncounter } from '../features/encounter/encounterEngine';
@@ -17,15 +17,17 @@ function pushStack(
   roastLevel: string,
   count: number,
   unitValue: number,
-  source?: 'made' | 'purchased',
+  source?: 'made' | 'purchased' | 'gift',
   sourceNpc?: string,
   bargain?: 'deal' | 'overpriced',
+  giftTag?: string,
 ): TeaStack[] {
-  const key = `${teaId}:${grade}:${roastLevel}`;
+  // 旅途赠礼成独立一栈（key 带上 giftTag）：不与自制/购买的同品质茶合并，保留「我的旅途」身份。
+  const key = giftTag ? `${teaId}:${grade}:${giftTag}` : `${teaId}:${grade}:${roastLevel}`;
   const next = [...inventory];
   const idx = next.findIndex((s) => s.id === key);
   if (idx >= 0) next[idx] = { ...next[idx], count: next[idx].count + count };
-  else   next.push({ id: key, teaId, grade, count, unitValue, roastLevel, firstMadeAt: new Date().toISOString(), source, sourceNpc, bargain });
+  else   next.push({ id: key, teaId, grade, count, unitValue, roastLevel, firstMadeAt: new Date().toISOString(), source, sourceNpc, bargain, giftTag });
   return next;
 }
 
@@ -40,18 +42,24 @@ export type Scene =
   | 'start'        // 启动页（boot gate）：继续旅程 / 新的茶旅
   | 'intro'        // 茶馆开场
   | 'teaworld'     // 茶世界：茶区旅行入口（四宫格 + 茶叶旅行动画）
-  | 'map'          // 武夷山地点选择
+  | 'map'          // 当前茶区的地点选择（按 player.currentRegion 渲染）
   | 'teahouse'     // 老陈茶馆 + 林姑娘线索
   | 'garden'       // 茶园：阿秀 + 选茶 + 采茶
   | 'workshop'     // 制茶坊：岩伯（地图可独立拜访；实际五步在 making）
   | 'pick-tea'     // 选茶（XHS 线性入口）
-  | 'making'       // 制茶五步
+  | 'making'       // 制茶（由配方决定步骤：岩茶 / 红茶不同）
   | 'result'       // 制茶结果
   | 'brew'         // 8 步泡茶
   | 'teatable'     // 周伯点评
   | 'mothertree'   // 母树（岩伯）
-  | 'market'       // 茶集市（小满 · 卖茶/辨茶）
+  | 'market'       // 茶集市（小满 · 卖茶/辨茶；各地共用）
   | 'mountain'     // 山路（主动「去山路上逛逛」；偶遇 NPC 的主场之一）
+  // ── 杭州篇（第二阶段起步：功能场景与武夷山同一套，只是本地场景 / NPC 不同） ──
+  | 'hz-teahouse'  // 玲姨的茶馆
+  | 'hz-garden'    // 杭州茶园：阿青
+  | 'hz-workshop'  // 杭州制茶坊
+  | 'hz-teatable'  // 杭州茶桌（泡茶 / 品饮）
+  | 'meijiawu'     // 梅家坞（地域探索入口 · 占位）
   | 'journal'      // 茶游记手账
   | 'comic'        // 漫画视图
   | 'clue'         // 线索视图
@@ -117,6 +125,8 @@ interface GameStore {
   saveProgress: () => void;
   /** 启动态跳转：直接切场景、清空导航历史（不把 start 页压入返回栈）。 */
   bootTo: (s: Scene) => void;
+  /** 从茶世界进入某茶区：切换 currentRegion、同步本茶区天数与熟练度，并进入指定场景（默认茶区地图）。 */
+  enterRegion: (regionId: string, target?: Scene) => void;
 
   go: (s: Scene, data?: SceneData) => void;
   back: () => void;
@@ -140,6 +150,8 @@ interface GameStore {
   sell: (stackId: string, price?: number) => void;
   addCoins: (n: number) => void;
   addTea: (teaId: string, grade: Grade, roastLevel: string, count: number, unitValue: number, sourceNpc?: string, bargain?: 'deal' | 'overpriced') => void;
+  /** 一次性旅途赠礼入茶篓（如「武夷山茶礼」）：source='gift'、带 giftTag，成独立一栈，不参与普通出售。 */
+  addGiftTea: (teaId: string, grade: Grade, count: number, giftTag?: string) => void;
   /** 茶集市买茶：原子扣茶钱 + 入茶篓（source=purchased）。余额不足返回 false 且不改状态。 */
   buyTea: (teaId: string, grade: Grade, price: number, sourceNpc?: string, bargain?: 'deal' | 'overpriced') => boolean;
   /** 茶集市买茶具：原子扣茶钱 + 入茶具收藏（teaWareInventory）。已拥有 / 余额不足返回 false 且不改状态。 */
@@ -213,6 +225,33 @@ export const useGame = create<GameStore>((set, get) => ({
 
   bootTo: (s) => set({ scene: s, navHistory: [] }),
 
+  // 进入某茶区：切换当前茶区，并把「天数 / 熟练度 / 山路当日次数」同步为该茶区的值。
+  // 武夷山与杭州共用同一批功能场景，具体场景 key 由数据（regions.locations[].scene）绑定。
+  // 不清空玩家进度，只做「进入某茶区」这一步所需的轻量状态切换。
+  enterRegion: (regionId, target = 'map') => {
+    const st = get();
+    const { player } = st;
+    const changed = player.currentRegion !== regionId;
+    const regionDays = { ...player.regionDays, [regionId]: player.regionDays[regionId] ?? 1 };
+    const next: Player = {
+      ...player,
+      currentRegion: regionId,
+      day: regionDays[regionId],
+      // proficiency 始终代表「当前茶区熟练度」，兼容制茶容错 / NPC 熟练度对话。
+      proficiency: player.proficiencyByRegion?.[regionId] ?? 0,
+      // 换茶区 = 换了一天，重置山路当日次数；同茶区重进不动。
+      mountainVisitsToday: changed ? 0 : player.mountainVisitsToday,
+      regionDays,
+    };
+    persist(next);
+    // 与 go 一样把「进入前的场景」压栈（仍可返回茶世界），不清空既有历史。
+    set({
+      player: next,
+      scene: target,
+      navHistory: pushHist(st.navHistory, { scene: st.scene, data: st.sceneData }),
+    });
+  },
+
   // 主动去山路上逛逛：每日最多 3 次（主动进入才计数；场景内偶遇不计数）。达上限不进入。
   visitMountain: () => {
     const { player, navHistory } = get();
@@ -275,12 +314,16 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ player: next });
   },
 
-  startMaking: (teaId) => set((st) => ({
-    currentTeaId: teaId,
-    scene: 'making',
-    lastResult: null,
-    navHistory: pushHist(st.navHistory, { scene: st.scene, data: st.sceneData }),
-  })),
+  startMaking: (teaId) => {
+    // 无「已实现配方」的茶（如尚未实装龙井配方的龙井）不进入制茶流程，避免误用别的茶的工序。
+    if (!isCraftable(teaId)) return;
+    set((st) => ({
+      currentTeaId: teaId,
+      scene: 'making',
+      lastResult: null,
+      navHistory: pushHist(st.navHistory, { scene: st.scene, data: st.sceneData }),
+    }));
+  },
 
   finishMaking: (result, gain) => {
     const { player } = get();
@@ -310,7 +353,14 @@ export const useGame = create<GameStore>((set, get) => ({
     // 中途退出、切换场景、返回都不调本函数 → 不扣茶。brewingStackId 在扣完后置 null，
     // 即使因 effect / 重渲染导致本函数被重复调用，第二次也因 id 已空而不重复扣除。
     const st = get();
-    const id = st.brewingStackId;
+    // 稳健定位「这一泡用的那包茶」：优先用显式记录的 brewingStackId；
+    // 兜底用 lastResult（同 茶种:品质:过程标签）反查——避免任何入口漏记 id 时出现「泡了不扣茶」。
+    let id = st.brewingStackId;
+    if (!id && st.lastResult) {
+      const r = st.lastResult;
+      const guess = `${r.teaId}:${r.grade}:${r.roastLevel}`;
+      if (st.player.inventory.some((s) => s.id === guess)) id = guess;
+    }
     if (id) {
       const stack = st.player.inventory.find((s) => s.id === id);
       const inventory = consumeOne(st.player.inventory, id);
@@ -320,16 +370,19 @@ export const useGame = create<GameStore>((set, get) => ({
         ? getZhouBoAfterTeaAdvice({ teaId: stack.teaId, grade: stack.grade, brewScore: o.brewScore, player: st.player })
         : null;
       persist(next);
+      // 泡完回到「当前茶区的茶桌」：武夷山=周伯茶桌，杭州=杭州茶桌（场景由数据绑定）。
+      const teaTable = regionLocationScene(next.currentRegion || 'wuyishan', 'teatable') as Scene;
       set({
         lastBrew: o,
-        scene: 'teatable',
+        scene: teaTable,
         player: next,
         brewingStackId: null,
         drinkNotice: stack ? `这一泡喝完了——${getTea(stack.teaId).name} 少了一包。` : null,
         zhouBoAdvice: advice,
       });
     } else {
-      set({ lastBrew: o, scene: 'teatable', zhouBoAdvice: null });
+      const teaTable = regionLocationScene(st.player.currentRegion || 'wuyishan', 'teatable') as Scene;
+      set({ lastBrew: o, scene: teaTable, zhouBoAdvice: null });
     }
   },
 
@@ -390,6 +443,17 @@ export const useGame = create<GameStore>((set, get) => ({
   addTea: (teaId, grade, roastLevel, count, unitValue, sourceNpc?, bargain?) => {
     const { player } = get();
     const inventory = pushStack(player.inventory, teaId, grade, roastLevel, count, unitValue, sourceNpc ? 'purchased' : undefined, sourceNpc, bargain);
+    const next = { ...player, inventory };
+    persist(next);
+    set({ player: next });
+  },
+
+  addGiftTea: (teaId, grade, count, giftTag) => {
+    // 一次性旅途赠礼（如老陈的武夷山茶礼）：进现有茶篓，source='gift' 且带 giftTag。
+    // 不改动任何已有茶的 grade / 数量：赠礼单独成栈（见 pushStack）。
+    const { player } = get();
+    const tea = getTea(teaId);
+    const inventory = pushStack(player.inventory, teaId, grade, '足火', count, tea.basePrice[grade], 'gift', undefined, undefined, giftTag);
     const next = { ...player, inventory };
     persist(next);
     set({ player: next });

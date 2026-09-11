@@ -17,6 +17,41 @@ export const SOUVENIRS: SouvenirDef[] = [
     yanboNote: '来过，就记得。',
     source: '武夷山九龙窠实拍',
   },
+  // ─────────── 杭州 · 梅家坞：吟诗老人赠的旅途收藏 ───────────
+  // 文字类收藏（诗笺），与玲姨茶馆的「茶联」是两回事：来源、赠予者、叙事意义都不同。
+  // 诗句为用户指定原文（唐韬《访西湖梅家坞茶村》），保持原样，不改写。
+  {
+    id: 'poem_meijiawu',
+    regionId: 'hangzhou',
+    kind: 'note',
+    title: '梅家坞诗笺',
+    place: '浙江 · 杭州 · 梅家坞',
+    lines: [
+      '梅家坞村翠千重，',
+      '一缕香烟绕秀峰。',
+      '如此湖山归去得，',
+      '诗人不做做茶农。',
+    ],
+    attribution: '唐韬《访西湖梅家坞茶村》',
+    backText: '吟诗老人留下的一张小诗笺。',
+    motto: '陶冶情操，有缘再见。',
+    giverName: '吟诗老人',
+  },
+  // ─────────── 杭州 · 玲姨茶馆：玲姨送的茶联 ───────────
+  // 一副完整茶联 = 上联 + 下联两个独立图片资源（120×420 原样，等比缩放，不改字、不合并），
+  // 但收藏上仍是**一件**收藏品（kind:'couplet'）。卷轴展开体验见 CoupletScroll。
+  {
+    id: 'couplet_hangzhou',
+    regionId: 'hangzhou',
+    kind: 'couplet',
+    title: '杭州茶联',
+    place: '浙江 · 杭州 · 玲姨的茶馆',
+    photo: 'assets/couplets/couplet_upper.webp',  // 上联（← background picture/茶联上.PNG）
+    photo2: 'assets/couplets/couplet_lower.webp', // 下联（← background picture/茶联下.PNG）
+    backText: '玲姨从茶馆柱子上揭下来送你的一副小联。',
+    motto: '挂在哪里，哪里就是茶馆。',
+    giverName: '玲姨',
+  },
 ];
 
 export function getSouvenir(id: string): SouvenirDef | undefined {

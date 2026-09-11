@@ -183,6 +183,106 @@ body {
 .postcard-note-label { font-size: 12px; color: var(--ink-3); margin-bottom: 3px; }
 .postcard-note p { font-family: var(--serif); font-size: 15px; color: var(--ink); margin: 0; }
 
+/* ───── 旅行纪念 · 诗笺（文字类收藏品，与明信片明确区分） ───── */
+.poem-note {
+  position: relative;
+  width: 100%;
+  padding: 24px 20px 18px;
+  border-radius: 12px;
+  background: #faf6ea;
+  border: 1px solid rgba(200, 169, 138, 0.6);
+  box-shadow: 0 4px 16px rgba(60, 42, 24, 0.16);
+  animation: giftIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.poem-note::before {
+  content: ''; position: absolute; inset: 6px; border-radius: 8px;
+  border: 1px solid rgba(176, 138, 122, 0.35); pointer-events: none;
+}
+.poem-note-head {
+  text-align: center; font-family: var(--serif); font-size: 14px;
+  letter-spacing: 0.4em; color: var(--ink-3); margin-bottom: 16px;
+}
+.poem-lines { display: flex; flex-direction: column; gap: 8px; }
+.poem-line {
+  text-align: center; font-family: var(--serif); font-size: 19px; line-height: 1.5;
+  letter-spacing: 0.06em; color: var(--ink);
+}
+.poem-attr { text-align: center; font-size: 12px; color: var(--ink-3); margin-top: 14px; }
+.poem-motto { text-align: center; font-family: var(--serif); font-size: 15px; color: var(--ochre); margin-top: 12px; }
+.poem-desc { text-align: center; font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+.poem-place { text-align: center; font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+
+/* ───── 中式卷轴对联（杭州茶联礼物） ───── */
+/* 上联/下联 = 两个独立 120×420 资源（等比缩放、不合并）；高度用 vh 兜底保证 9:16 竖屏不出框。 */
+.cs-gift-stage {
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 4px 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.cs-gift-stage:focus-visible { outline: 2px solid var(--ochre); outline-offset: 4px; }
+.cs-pair {
+  --cs-h: clamp(230px, 46vh, 420px);
+  --cs-paper-w: calc(var(--cs-h) * 120 / 420);
+  --cs-rod-w: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 4.5vw, 26px);
+}
+.cs-item { display: flex; align-items: stretch; height: var(--cs-h); }
+/* 展开容器：宽度 0 ↔ 纸宽；锚定在木轴一侧，纸张像从轴后抽出；轻微回弹 easing */
+.cs-reveal {
+  width: 0;
+  overflow: hidden;
+  display: flex;
+  transition: width 0.85s cubic-bezier(0.32, 1.28, 0.48, 1);
+}
+.cs-reveal[data-open='1'] { width: var(--cs-paper-w); }
+.cs-paper {
+  width: var(--cs-paper-w);
+  height: 100%;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(60, 45, 20, 0.18));
+}
+/* 木轴：上下轴头略高出纸面；暖木色 + 一根系绳；纯装饰不遮字 */
+.cs-roller {
+  display: flex;
+  flex-direction: column;
+  width: var(--cs-rod-w);
+  margin: -12px 0;
+  flex-shrink: 0;
+}
+.cs-cap {
+  height: 13px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #6f5238, #a8895a 55%, #6f5238);
+  box-shadow: 0 1px 2px rgba(60, 45, 20, 0.35);
+}
+.cs-shaft {
+  flex: 1;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #96754c, #c2a26e 55%, #96754c);
+  position: relative;
+  box-shadow: 0 1px 2px rgba(60, 45, 20, 0.25);
+}
+.cs-cord {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 16%;
+  height: 4px;
+  border-radius: 2px;
+  background: #b0402e;
+  opacity: 0.85;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+/* 收藏查看页：卷轴（展开态）+ 侧注 */
+.couplet-view { display: flex; gap: 16px; align-items: center; justify-content: center; }
+.couplet-side { max-width: 220px; }
+.couplet-motto { font-family: var(--serif); font-size: 15px; color: var(--ochre); }
+
 /* ───── NPC 场景化对话 ───── */
 .npc-stage {
   position: relative;
@@ -617,6 +717,7 @@ body {
 }
 .pick-bg { position: absolute; inset: 0; z-index: 0; }
 .pick-bg svg { width: 100%; height: 100%; display: block; }
+
 
 /* 阿秀：站在茶园里的人，不是头像卡片 */
 .pick-axiu {

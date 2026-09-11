@@ -180,7 +180,7 @@ export function GongDaoSvg({ width = 92, liquor }: { width?: number; liquor?: st
  * - old    偏老：芽退化、叶片大而张开下倾
  * 颜色仅为同色系深浅，不作为唯一答案。
  */
-export function TeaShootSvg({ kind = 'good', size = 46 }: { kind?: 'tender' | 'good' | 'old'; size?: number }) {
+export function TeaShootSvg({ kind = 'good', size = 46 }: { kind?: 'tender' | 'good' | 'old' | 'bud1' | 'bud2'; size?: number }) {
   const c = kind === 'tender'
     ? {
         stem: 'M20 54 L20 22',
@@ -194,6 +194,22 @@ export function TeaShootSvg({ kind = 'good', size = 46 }: { kind?: 'tender' | 'g
         bud: 'M20 27 Q18 23 20 20 Q22 23 20 27 Z',
         leaves: ['M20 48 Q4 47 0 38 Q10 35 20 44 Z', 'M20 42 Q36 41 40 32 Q30 29 20 38 Z', 'M20 33 Q8 32 4 24 Q14 22 20 29 Z'],
         color: '#7e8b62', stroke: '#5c6b47',
+      }
+    // 一芽一叶（绿茶嫩芽标准里的最佳）：一枚挺立嫩芽，只带一片小叶
+    : kind === 'bud1'
+    ? {
+        stem: 'M20 54 L20 18',
+        bud: 'M20 18 Q16 10 20 3 Q24 10 20 18 Z',
+        leaves: ['M20 34 Q11 32 8 25 Q15 24 20 30 Z'],
+        color: '#c8e0a6', stroke: '#96b477',
+      }
+    // 一芽二叶（合适）：嫩芽带两片叶，嫩度稍逊
+    : kind === 'bud2'
+    ? {
+        stem: 'M20 54 L20 20',
+        bud: 'M20 20 Q17 13 20 7 Q23 13 20 20 Z',
+        leaves: ['M20 36 Q10 34 7 27 Q14 26 20 32 Z', 'M20 42 Q30 40 33 33 Q26 32 20 38 Z'],
+        color: '#aecf86', stroke: '#87a465',
       }
     : {
         stem: 'M20 54 L20 20',

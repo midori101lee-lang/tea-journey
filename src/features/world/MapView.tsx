@@ -1,65 +1,84 @@
 import { getRegion, isMarketUnlocked } from '../../core/data/regions';
 import { useGame } from '../../store/gameStore';
 import type { Scene } from '../../store/gameStore';
-import type { LocationId } from '../../core/types';
+import type { LocationId, Player, LocationDef } from '../../core/types';
 import { WeatherBadge } from '../../components/Weather';
 import { currentWeatherId } from '../../core/data/weather';
 
+/** 各茶区的地点显示顺序（固定功能场景 + 本区特色探索地点）。 */
+const REGION_ORDER: Record<string, LocationId[]> = {
+  wuyishan: ['teahouse', 'garden', 'workshop', 'teatable', 'mothertree', 'market'],
+  hangzhou: ['teahouse', 'garden', 'workshop', 'teatable', 'meijiawu', 'market'],
+};
+
+/** 某地点的门禁：茶集市=三种武夷茶都做过才开市；九龙窠=做过一锅茶；梅家坞=做过一锅九曲红梅；其余按数据默认态。 */
+function isLocked(loc: LocationDef, player: Player): boolean {
+  if (loc.id === 'market') return !isMarketUnlocked(player);
+  if (loc.id === 'mothertree') return !player.flags['tea_made'];
+  // 杭州 · 梅家坞：本章第一条线（九曲红梅）做出来之后才开放；不新增任务系统，沿用「做过这一锅」的轻量门禁。
+  if (loc.id === 'meijiawu') return !player.madeTeas['jiuquhongmei'];
+  return !!loc.locked;
+}
+
+function lockedHint(loc: LocationDef): string | null {
+  if (loc.id === 'market') return '三种茶都亲手做过，才会开市。';
+  if (loc.id === 'mothertree') return '做完一锅武夷山茶，再来这儿。';
+  if (loc.id === 'meijiawu') return '先把杭州的第一锅茶（九曲红梅）做出来，再去梅家坞。';
+  return null;
+}
+
 export default function MapView() {
   const { go, player, advanceDay, visitMountain } = useGame();
-  const region = getRegion('wuyishan');
+  const regionId = player.currentRegion || 'wuyishan';
+  const region = getRegion(regionId);
+  const isWuyi = regionId === 'wuyishan';
 
-  const order: LocationId[] = ['teahouse', 'garden', 'workshop', 'teatable', 'mothertree', 'market'];
+  const order = REGION_ORDER[regionId] ?? region.locations.map((l) => l.id);
   const mountainFull = player.mountainVisitsToday >= 3;
   const mountainLeft = Math.max(0, 3 - player.mountainVisitsToday);
+  const teaHouseName = isWuyi ? '老陈茶馆' : '玲姨的茶馆';
 
   return (
     <div>
-      <div className="hint">武夷山 · 轻量探索 · 第 {player.regionDays[player.currentRegion] ?? 1} 天</div>
+      <div className="hint">{region.name} · 轻量探索 · 第 {player.regionDays[regionId] ?? 1} 天</div>
       <WeatherBadge id={currentWeatherId(player)} showDesc />
       <h2 className="h-serif" style={{ margin: '2px 0 10px' }}>今天去哪儿？</h2>
       <div style={{ display: 'grid', gap: 12 }}>
         {order.map((id) => {
-          const loc = region.locations.find((l) => l.id === id)!;
-          // 茶集市：集齐三种亲手制茶才开市；九龙窠：完成一次制茶（tea_made）才解锁。
-          // 二者都以 flag 驱动，不靠熟练度 / 随机 / 老陈普通对话提前开门。
-          const locked =
-            loc.id === 'market' ? !isMarketUnlocked(player)
-            : loc.id === 'mothertree' ? !player.flags['tea_made']
-            : !!loc.locked;
+          const loc = region.locations.find((l) => l.id === id);
+          if (!loc) return null;
+          const locked = isLocked(loc, player);
           return (
             <button
               key={id}
               className="loc-card"
               disabled={locked}
-              onClick={() => go(loc.id as Scene)}
+              onClick={() => go((loc.scene ?? loc.id) as Scene)}
               style={{ borderLeft: `6px solid ${loc.accent}`, opacity: locked ? 0.55 : 1 }}
             >
               <div className="h-serif" style={{ fontSize: 18 }}>{locked ? '🔒 ' : ''}{loc.name}</div>
-              <div className="hint">
-                {locked && loc.id === 'market' ? '三种茶都亲手做过，才会开市。'
-                  : locked && loc.id === 'mothertree' ? '做完一锅武夷山茶，再来这儿。'
-                  : loc.blurb}
-              </div>
+              <div className="hint">{locked ? (lockedHint(loc) ?? loc.blurb) : loc.blurb}</div>
             </button>
           );
         })}
       </div>
-      <button
-        className="btn btn-primary"
-        style={{ marginTop: 14 }}
-        disabled={mountainFull}
-        onClick={() => visitMountain()}
-        title={mountainFull ? '今天山路已经逛够了，回茶馆歇一晚再来。' : ''}
-      >🚶 去山路上逛逛{mountainFull ? '（今天逛够啦）' : `（今天还能去 ${mountainLeft} 回）`}</button>
+      {isWuyi && (
+        <button
+          className="btn btn-primary"
+          style={{ marginTop: 14 }}
+          disabled={mountainFull}
+          onClick={() => visitMountain()}
+          title={mountainFull ? '今天山路已经逛够了，回茶馆歇一晚再来。' : ''}
+        >🚶 去山路上逛逛{mountainFull ? '（今天逛够啦）' : `（今天还能去 ${mountainLeft} 回）`}</button>
+      )}
       <button className="btn" style={{ marginTop: 10 }} onClick={() => go('journal')}>📚 我的茶游记</button>
       <button className="btn" style={{ marginTop: 10 }} onClick={() => go('teaworld')}>🌍 回到茶世界</button>
       <button
         className="btn"
         style={{ marginTop: 10 }}
         onClick={() => advanceDay()}
-        title="回老陈茶馆歇一晚：新的一天，山路又能逛了，今日行情也会变。"
-      >🌙 回老陈茶馆歇一晚（新的一天）</button>
+        title={`回${teaHouseName}歇一晚：新的一天，今日行情也会变。`}
+      >🌙 回{teaHouseName}歇一晚（新的一天）</button>
       <button
         className="btn"
         style={{ marginTop: 10, fontSize: 13, opacity: 0.6 }}

@@ -36,3 +36,6 @@ verify-*.png
 background picture/
 npc picture/
 chaju picture/
+
+# ── 原始素材源文件（茶点等，同上，不入库） ──
+cha dian/

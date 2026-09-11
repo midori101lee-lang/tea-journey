@@ -75,6 +75,30 @@ export const TEA_STEEP: Record<string, TeaSteepProfile> = {
     ],
     stageCut: [0.36, 0.54, 0.72, 1.01],
   },
+  // 九曲红梅（杭州 · 红茶）：红亮甜润，出汤宜快，久泡易生涩。
+  jiuquhongmei: {
+    window: { start: 0.4, end: 0.72 },
+    steepRate: 0.0082,
+    stages: [
+      '汤色浅浅地泛红，甜香还含着……',
+      '红亮起来了，梅香一丝丝往外透……',
+      '汤色红亮，甜香正浓，该出汤了……',
+      '汤色转暗、发浑，再泡就要涩了……',
+    ],
+    stageCut: [0.36, 0.54, 0.72, 1.01],
+  },
+  // 西湖龙井（杭州 · 绿茶，预留）：清绿鲜爽，窗口偏早。
+  longjing: {
+    window: { start: 0.34, end: 0.66 },
+    steepRate: 0.0086,
+    stages: [
+      '汤色清浅，豆香还淡着……',
+      '清绿透亮，鲜爽气开始出来……',
+      '汤色嫩绿，香气清爽，该出汤了……',
+      '汤色转黄，再泡就要出苦涩了……',
+    ],
+    stageCut: [0.32, 0.5, 0.68, 1.01],
+  },
 };
 
 export function steepProfile(teaId: string): TeaSteepProfile {
@@ -169,6 +193,30 @@ const TEA_VOICE: Record<string, TeaVoice> = {
     makeGood: '茶底尚可',
     makePlain: '茶底平平',
     makePoor: '茶底差强人意',
+  },
+  jiuquhongmei: {
+    aromaOk: '甜香里透着一丝梅子香，红亮又好闻',
+    aromaEarly: '甜香还淡着，红亮没完全出来',
+    aromaLate: '甜香被泡闷了，隐隐生出涩意',
+    soupOk: '汤感红亮甜润，落口顺滑',
+    soupEarly: '汤还薄，甜润感没撑开',
+    soupLate: '汤色发暗，甜润里带上涩了',
+    makeGreat: '茶底发酵得匀，红亮甜香都在',
+    makeGood: '茶底不错，甜香立得住',
+    makePlain: '茶底中规中矩，甜香不算突出',
+    makePoor: '茶底发酵没走匀，香有些闷',
+  },
+  longjing: {
+    aromaOk: '豆香清鲜，带着一点嫩栗子的甜',
+    aromaEarly: '香气还淡，鲜爽没打开',
+    aromaLate: '鲜爽被泡老了，透出一点涩',
+    soupOk: '汤感清绿鲜爽，回甘干净',
+    soupEarly: '汤还寡，鲜爽没起来',
+    soupLate: '汤色转黄，清鲜里带出涩口',
+    makeGreat: '茶底炒得透亮，鲜爽干净',
+    makeGood: '茶底不错，鲜爽立得住',
+    makePlain: '茶底平常，鲜爽一般',
+    makePoor: '茶底没炒透，青气还压着',
   },
 };
 

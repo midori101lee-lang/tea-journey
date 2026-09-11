@@ -12,6 +12,14 @@ const WEIGHTS: Partial<Record<StepId, number>> = {
   zuoqing: 0.30,
   'chao-rou': 0.20,
   roasting: 0.25,
+  // 红茶线（杭州·九曲红梅）：发酵是核心记忆点，权重最高
+  withering: 0.15,
+  rolling: 0.20,
+  fermentation: 0.35,
+  drying: 0.15,
+  // 绿茶线（杭州·西湖龙井）：杀青定鲜、理条成形，是这一路的两处记忆点
+  fixation: 0.30,
+  shaping: 0.30,
 };
 
 const FAULT_PENALTY: Record<FaultTag, number> = {
@@ -27,6 +35,15 @@ const FAULT_PENALTY: Record<FaultTag, number> = {
   rolling_broken: 12,
   roast_hasty: 12,
   roast_over: 16,
+  wither_short: 6,
+  wither_over: 6,
+  ferment_short: 10,
+  ferment_over: 12,
+  drying_over: 10,
+  fixation_under: 12,
+  fixation_over: 14,
+  shaping_loose: 10,
+  shaping_broken: 12,
 };
 
 export const FAULT_REASON: Record<FaultTag, string> = {
@@ -42,6 +59,15 @@ export const FAULT_REASON: Record<FaultTag, string> = {
   rolling_broken: '揉得太重，条索断了。',
   roast_hasty: '火太急，香还没转出来。',
   roast_over: '焙过头了，火气压住了茶。',
+  wither_short: '萎凋没到，叶子还硬挺着。',
+  wither_over: '萎凋过头，叶子失水太多。',
+  ferment_short: '发酵没发起，香还没转出来。',
+  ferment_over: '发酵过了，味有点闷。',
+  drying_over: '烘得急了，火气重了些。',
+  fixation_under: '锅温不够，青气没杀透。',
+  fixation_over: '锅太热，边上有点焦了。',
+  shaping_loose: '手上没使上劲，条索还散着。',
+  shaping_broken: '手重了，条索压碎了。',
 };
 
 /** 评语池：按 茶种 × 等级 × 火功 借自然语言的口吻（前台只显示这一句 + 等级 + 茶钱 + 火功） */
@@ -64,10 +90,37 @@ const COMMENTS: Record<string, Record<Grade, string[]>> = {
     normal: ['能喝。离「大红袍」还差几锅火。', '及格，但仅是及格。'],
     fail: ['这锅……还是留着自己喝吧。'],
   },
+  jiuquhongmei: {
+    fine: ['红亮甜润，甜香明显，带着一丝梅子般的清甜。', '汤色红亮，甜香里透出梅子香——这一锅，像样。'],
+    good: ['甜香出来了，汤也红亮，就是尾巴略短。', '不错，红茶的暖香有了。'],
+    normal: ['茶汤偏浅，滋味略带青涩，下次可以再等等。', '能喝。发酵的度还差一口气。'],
+    fail: ['香气发闷，这锅……还是留着自己喝吧。'],
+  },
+  // 杭州 · 西湖龙井（绿茶）：清亮鲜爽、豆香/栗香、回甘干净。不套红茶 / 岩茶的口吻。
+  longjing: {
+    fine: ['汤色清亮，茶香清鲜，带着淡淡的豆香，入口鲜爽。', '嫩绿透亮，鲜爽干净——这一锅，是龙井的样子。'],
+    good: ['豆香出来了，汤也清亮，就是鲜爽稍短一口气。', '不错，绿茶那股清鲜有了。'],
+    normal: ['汤色略浑，香气偏弱，鲜爽感不足，下次火候再稳些。', '能喝。杀青的度还差一点。'],
+    fail: ['青气还压着，这锅……还是留着自己喝吧。'],
+  },
 };
 
 function pick<T>(arr: T[], seed: number): T {
   return arr[Math.floor(seed * arr.length) % arr.length];
+}
+
+/**
+ * 「目标区间」类工序的通用评分（萎凋 / 发酵等）：
+ * 区间内 80–100（越靠中心越好），区间外按超出量平滑衰减（不会因差一点就掉到很低）。
+ * 让玩家靠「看状态」判断，而不是背数字；细心 ≈ 上品，略偏 ≈ 良好，明显过头/不足才低分。
+ */
+export function targetWindowScore(value: number, target: [number, number]): number {
+  const [lo, hi] = target;
+  const mid = (lo + hi) / 2;
+  const half = Math.max(4, (hi - lo) / 2);
+  const d = Math.abs(value - mid);
+  const s = d <= half ? 100 - (d / half) * 20 : Math.max(0, 80 - ((d - half) / half) * 32);
+  return Math.max(0, Math.min(100, Math.round(s)));
 }
 
 /**
@@ -111,17 +164,46 @@ export function computeResult(
 
   const roastOutcome = outcomes.find((o) => o.step === 'roasting');
   const haste = roastOutcome?.haste ?? 0;
-  const roastLevel = computeRoastLevel(roastOutcome?.score ?? 50, haste);
+  // 过程标签按茶类走：岩茶=火功，红茶=发酵（九曲红梅的记忆点），绿茶=杀青（龙井的记忆点）。
+  // 均为「本次过程形成的结果标签」，不代表对现实茶叶品质的绝对判断。
+  let roastLevel: string;
+  if (tea.category === 'yancha') {
+    roastLevel = computeRoastLevel(roastOutcome?.score ?? 50, haste);
+  } else if (tea.category === 'hongcha') {
+    const f = outcomes.find((o) => o.step === 'fermentation')?.score ?? 50;
+    roastLevel = faults.includes('ferment_over') ? '略过' : faults.includes('ferment_short') ? '不足' : f >= 60 ? '到位' : '中';
+  } else if (tea.category === 'green') {
+    const fx = outcomes.find((o) => o.step === 'fixation')?.score ?? 50;
+    roastLevel = faults.includes('fixation_over') ? '略过' : faults.includes('fixation_under') ? '不足' : fx >= 60 ? '刚好' : '中';
+  } else {
+    roastLevel = '干燥';
+  }
 
-  // 视觉合成：干茶色由做青红边 + 焙火决定
+  // 视觉合成：岩茶由做青红边 + 焙火决定；红茶由发酵转色 + 揉捻断条决定；
+  // 绿茶不转红，看的是「杀青是否还鲜、理条是否扁平挺直」。
   const zuo = outcomes.find((o) => o.step === 'zuoqing');
   const chao = outcomes.find((o) => o.step === 'chao-rou');
-  const edgeRed = zuo ? zuo.visualState.edgeRed : 0;
-  const broken = chao ? chao.visualState.shape === 'broken' : false;
-  const baseColor = grade === 'fail' ? '#5C5246' : edgeRed > 0.55 ? '#3A2E22' : '#4A3A2A';
+  const rollO = outcomes.find((o) => o.step === 'rolling');
+  const fermO = outcomes.find((o) => o.step === 'fermentation');
+  const shapeO = outcomes.find((o) => o.step === 'shaping');
+  const isHong = tea.category === 'hongcha';
+  const isGreen = tea.category === 'green';
+  const edgeRed = isHong ? (fermO ? fermO.score / 100 : 0)
+    : isGreen ? 0
+      : (zuo ? zuo.visualState.edgeRed : 0);
+  const broken = isHong
+    ? (rollO ? rollO.visualState.shape === 'broken' : false)
+    : isGreen
+      ? (shapeO ? shapeO.visualState.shape === 'broken' : false)
+      : (chao ? chao.visualState.shape === 'broken' : false);
+  const baseColor = grade === 'fail' ? (isGreen ? '#5c5844' : '#5C5246')
+    : isGreen ? (grade === 'fine' || grade === 'good' ? '#a8ae58' : '#94995c')
+      : isHong ? (edgeRed > 0.7 ? '#5a2b1e' : '#6b3a26')
+        : edgeRed > 0.55 ? '#3A2E22' : '#4A3A2A';
   const visuals: LeafVisualState = {
     dryColor: baseColor,
-    shape: broken ? 'broken' : grade === 'fail' ? 'flat' : 'curled',
+    // 龙井的目标就是「扁平挺直」——flat 对绿茶是好形，不是失败形。
+    shape: broken ? 'broken' : isGreen ? 'flat' : grade === 'fail' ? 'flat' : 'curled',
     edgeRed,
     sheen: final / 100,
   };
@@ -143,10 +225,19 @@ export function computeResult(
     zuoqing: '做青的节奏掌握得不错。',
     'chao-rou': '炒揉拿捏得准，条索紧结。',
     roasting: '这一炉火候走得很稳。',
+    withering: '萎凋得匀，叶子软硬正好。',
+    rolling: '揉捻到位，条索紧结。',
+    fermentation: '发酵的度拿捏得不错。',
+    drying: '烘干收得稳，火气不重。',
+    fixation: '杀青抓得准，青气散了，鲜味定住了。',
+    shaping: '理条做得细，叶子压得扁平挺直。',
   };
   const best = outcomes.reduce((a, b) => (b.score > a.score ? b : a));
   const praise = PRAISE[best.step] ?? '这一锅做得稳。';
   const highlight = faultReason ?? (grade === 'fail' ? '这一锅没达到预期，下一锅再来。' : praise);
+
+  // 逐工序小记：把每一步的自然语言结论汇总，供结果页让玩家「看懂自己这锅茶」。
+  const stepNotes = outcomes.filter((o) => !!o.comment).map((o) => ({ step: o.step, text: o.comment }));
 
   return {
     teaId,
@@ -154,6 +245,7 @@ export function computeResult(
     comment,
     faultReason,
     highlight,
+    stepNotes,
     value: tea.basePrice[grade],
     roastLevel,
     faults,

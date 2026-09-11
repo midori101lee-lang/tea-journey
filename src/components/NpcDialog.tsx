@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { Dialogue, DialogueLine } from '../core/types';
-import { DIALOGUES } from '../core/data/dialogues';
+import { DIALOGUES, DERIVED_DIALOGUE_FLAGS } from '../core/data/dialogues';
 import { getNpc } from '../core/data/npcs';
+import { getTea } from '../core/data/teas';
 import { useGame } from '../store/gameStore';
 import { NpcStage } from './NpcStage';
 
@@ -24,6 +25,9 @@ function buildSteps(scene: string, npcId: string | undefined, player: ReturnType
     if (d.trigger.flag === 'proficiency_tier') return String(d.trigger.value) === tier;
     if (d.trigger.flag === 'phase') return player.flags['phase'] === d.trigger.value;
     if (d.trigger.flag === 'tea_made') return player.flags['tea_made'] === 1;
+    // 派生条件（章节里程碑 / 旅途记忆）：由世界状态即时计算，不落盘 → 天然兼容旧存档。
+    const derived = DERIVED_DIALOGUE_FLAGS[d.trigger.flag];
+    if (derived) return derived(player) === (d.trigger.value ?? true);
     // value:false 同时匹配「未设置」(undefined) 与显式 false，便于表达「尚未访问某场景」。
     const fv = player.flags[d.trigger.flag];
     return d.trigger.value === undefined ? !!fv : (fv ?? false) === d.trigger.value;
@@ -46,7 +50,7 @@ function buildSteps(scene: string, npcId: string | undefined, player: ReturnType
  * 播到最后一步后隐藏「继续」按钮，避免「点了没反应」的死按钮错觉（父级已展示后续 UI）。
  */
 export default function NpcDialog({ scene, npcId, onDone }: Props) {
-  const { setFlags, unlockComic, addClue, addSouvenir, meetNpc } = useGame();
+  const { setFlags, unlockComic, addClue, addSouvenir, meetNpc, addGiftTea, showToast } = useGame();
   // 挂载时按当前 player 状态构建一次（WebApp 已为每个 (scene,npcId) 加 key 强制重挂载）。
   const [steps] = useState<Step[]>(() => buildSteps(scene, npcId, useGame.getState().player));
   const [i, setI] = useState(0);
@@ -69,6 +73,8 @@ export default function NpcDialog({ scene, npcId, onDone }: Props) {
   const text = step.line.text;
   const choices = step.line.choices ?? [];
   const isLast = i + 1 >= steps.length;
+  // 台词署名：默认显示该 NPC；若该句显式写了别的说话人（如玩家「你」、旁白），则按原样显示、且不挂 NPC 职务。
+  const otherSpeaker = step.line.speaker && step.line.speaker !== npc.name ? step.line.speaker : null;
 
   function applyEffects(d: Dialogue) {
     if (d.setsFlags) setFlags(d.setsFlags);
@@ -76,6 +82,12 @@ export default function NpcDialog({ scene, npcId, onDone }: Props) {
     if (d.unlocksComic) unlockComic(d.unlocksComic);
     if (d.unlocksClue) addClue(d.unlocksClue);
     if (d.givesSouvenir) addSouvenir(d.givesSouvenir); // 游历纪念物进「游记收藏」
+    if (d.givesTea?.length) {
+      // 旅途告别礼（如武夷山茶礼）：进现有茶篓，source='gift'，不参与普通出售。
+      for (const g of d.givesTea) addGiftTea(g.teaId, g.grade, g.count, g.giftTag);
+      const parts = d.givesTea.map((g) => `${getTea(g.teaId).name} ×${g.count}`);
+      showToast(`🍵 ${parts.join(' · ')} 已放入茶篓`);
+    }
   }
 
   function advance() {
@@ -92,8 +104,8 @@ export default function NpcDialog({ scene, npcId, onDone }: Props) {
   return (
     <NpcStage sceneKey={sceneArt} npcId={step.dlg.npcId}>
       <div className="dialog-meta">
-        <span className="dialog-npc-inline">{npc.name}</span>
-        <span className="dialog-role-inline">{npc.role}</span>
+        <span className="dialog-npc-inline">{otherSpeaker ?? npc.name}</span>
+        {!otherSpeaker && <span className="dialog-role-inline">{npc.role}</span>}
       </div>
       <p className="dialog-line">{text}</p>
       {finished ? null : choices.length > 0 ? (

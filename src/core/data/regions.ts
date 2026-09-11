@@ -1,4 +1,4 @@
-import type { Region, Clue, Player } from '../types';
+import type { Region, Clue, Player, LocationId } from '../types';
 import { TEAS } from './teas';
 
 // ─────────── 茶区（先做一座山，再做整个中国） ───────────
@@ -22,13 +22,36 @@ export const REGIONS: Region[] = [
       { id: 'market', name: '茶集市', npcIds: ['xiaoman'], accent: '#c8b27a', blurb: '买卖茶与茶具的地方。', locked: true },
     ],
   },
-  // 后续版本：杭州 / 福州 / 潮州 …… 只加数据，不动逻辑。
+  // ─────────── 杭州（第二阶段起步：先跑通九曲红梅最小闭环；龙井/梅家坞剧情后置） ───────────
+  // 与武夷山共享同一批功能场景（茶馆/茶园/制茶坊/茶桌/茶集市），只是数据与本地场景不同；
+  // 梅家坞对标九龙窠，是本阶段唯一的地域探索入口（占位，后续挂载龙井线剧情）。
+  {
+    id: 'hangzhou',
+    name: '杭州',
+    accent: '#8fb0a8', // 茶区主题色：江南青
+    intro: '西湖边的茶山，一层一层绿到山脚。林姑娘说的那个杭州，你到了。',
+    locations: [
+      { id: 'teahouse', name: '玲姨的茶馆', npcIds: ['lingyi'], accent: '#cfe0d6', blurb: '玲姨的茶馆，一杯龙井配一小碟茶点，坐下就不想走。', scene: 'hz-teahouse' },
+      { id: 'garden', name: '杭州茶园', npcIds: ['aqing'], accent: '#bfe0b6', blurb: '茶园里有个小大人一样的孩子，说起茶来头头是道。', scene: 'hz-garden' },
+      { id: 'workshop', name: '制茶坊', npcIds: [], accent: '#cdb48a', blurb: '杭州做茶是另一条路：萎凋、揉捻、发酵、烘干。', scene: 'hz-workshop' },
+      { id: 'teatable', name: '茶桌', npcIds: [], accent: '#c9b79c', blurb: '自己做的九曲红梅，在这儿泡一壶尝尝。', scene: 'hz-teatable' },
+      { id: 'meijiawu', name: '梅家坞', npcIds: ['yinshi_laoren'], accent: '#a8c8b0', blurb: '梅家坞——龙井的核心山场，茶园里常有位爱吟诗的老人。', scene: 'meijiawu' },
+      { id: 'market', name: '茶集市', npcIds: ['xiaoman'], accent: '#c8b27a', blurb: '买卖茶与茶具的地方。（各地共用）', scene: 'market', locked: true },
+    ],
+  },
 ];
 
 export function getRegion(id: string): Region {
   const r = REGIONS.find((x) => x.id === id);
   if (!r) throw new Error(`unknown region: ${id}`);
   return r;
+}
+
+/** 某茶区某功能地点对应的「场景 key」：茶馆/茶园/制茶坊/茶桌等在各茶区可绑定不同本地场景。 */
+export function regionLocationScene(regionId: string, locId: LocationId): string {
+  const r = REGIONS.find((x) => x.id === regionId);
+  const loc = r?.locations.find((l) => l.id === locId);
+  return loc?.scene ?? locId;
 }
 
 // ─────────── 茶集市解锁 ───────────
@@ -79,7 +102,6 @@ export interface UpcomingRegion {
 }
 
 export const UPCOMING_REGIONS: UpcomingRegion[] = [
-  { id: 'hangzhou', name: '杭州', icon: '🍃', accent: '#8fb0a8', hint: '林姑娘提过：那边要嫩芽，锅一烫就杀青。' },
   { id: 'fuzhou', name: '福州', icon: '🌸', accent: '#d3a6ac', hint: '老陈说过：拿茶坯去窨花，茉莉香是吃进去的。' },
   { id: 'chaozhou', name: '潮州', icon: '🌱', accent: '#b8a06a', hint: '还没人跟你提起过那里。' },
 ];
@@ -97,6 +119,22 @@ export function regionExploration(player: Player, region: Region): { visited: nu
   );
   const visited = targets.filter((l) => l.npcIds.some((n) => player.metNpcs.includes(n))).length;
   return { visited, total: targets.length };
+}
+
+// ─────────── 章节衔接：武夷山走完 → 老陈收束 → 林姑娘引出杭州 ───────────
+// 复用现有探索进度（regionExploration），不新增第二套探索系统、不引入熟练度。
+
+/** 武夷山是否已「走完一遍」= 探索 5/5。茶集市开市后探索分母为 5，故 visited>=5 即满。 */
+export function isWuyishanExplored(player: Player): boolean {
+  const r = REGIONS.find((x) => x.id === 'wuyishan');
+  if (!r) return false;
+  const { visited, total } = regionExploration(player, r);
+  return total >= 5 && visited >= total;
+}
+
+/** 玩家是否还带着「老陈送的武夷山茶」（区域告别礼）。供未来各 NPC 的旅途记忆读取。 */
+export function hasWuyishanGiftTea(player: Player): boolean {
+  return player.inventory.some((s) => s.giftTag === 'farewell_gift_wuyishan' && s.count > 0);
 }
 
 /** 某茶区的茶叶记录：只用 madeTeas（曾经亲手做过），与背包无关。 */

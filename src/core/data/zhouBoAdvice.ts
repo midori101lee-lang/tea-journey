@@ -12,7 +12,9 @@ import { YANCHA_RECIPE } from './teas';
 /** 武夷山可亲手制作的茶（与 YANCHA_RECIPE.appliesTo 同源，单点事实）。 */
 const WUYI_MAKABLE = YANCHA_RECIPE.appliesTo;
 
-export type ZhouBoTarget = 'mothertree' | 'market' | 'pick-tea' | 'mountain';
+export type ZhouBoTarget = 'mothertree' | 'market' | 'pick-tea' | 'mountain'
+  // 杭州章节：下一座茶山的建议入口
+  | 'hz-garden' | 'meijiawu';
 
 export interface ZhouBoAdvice {
   /** ① 品茶评价（周伯口吻，一句话） */
@@ -108,6 +110,34 @@ export function getZhouBoAfterTeaAdvice(input: ZhouBoInput): ZhouBoAdvice {
     else if (s > 85) comment = '泡得认真，可这茶底本身没那么神，香味没怎么起来。';
     else comment = '能喝。就是这价……你买贵了吧？';
     return { comment };
+  }
+
+  // ── 杭州 · 九曲红梅（红茶）：按红茶口吻评价，入口指向杭州自己的地点（不做九龙窠那套） ──
+  if (teaId === 'jiuquhongmei') {
+    if (isFail(grade) || isPlain(grade)) {
+      const comment = pick(['香是有了，就是发酵还差一口气。', '这泡九曲红梅，甜香没完全发出来。'], seed);
+      return { comment, suggestion: '再做一锅，发酵时多看一眼叶色。', action: { label: '再去茶园做一锅', target: 'hz-garden' } };
+    }
+    if (isGood(grade)) {
+      const comment = pick(['甜香出来了，汤也红亮。', '不错，红茶的暖香有了。'], seed);
+      return { comment, suggestion: '梅家坞那边，有空可以去看看。', action: { label: '去梅家坞走走', target: 'meijiawu' } };
+    }
+    const comment = pick(['红亮甜润，这一泡正。', '嗯，武夷山喝的是岩骨花香，这一杯，是另一路。'], seed);
+    return { comment, suggestion: '回头去梅家坞看看——杭州的茶山，和武夷山不一样。' };
+  }
+
+  // ── 杭州 · 西湖龙井（绿茶）：说清亮鲜爽、豆香回甘，不套岩茶 / 红茶的口吻 ──
+  if (teaId === 'longjing') {
+    if (isFail(grade) || isPlain(grade)) {
+      const comment = pick(['鲜爽没出来，青气还压着——杀青那一步再看紧些。', '这泡龙井，香气偏弱了点。'], seed);
+      return { comment, suggestion: '再做一锅，杀青时手快一点、锅温看准些。', action: { label: '再去茶园做一锅', target: 'hz-garden' } };
+    }
+    if (isGood(grade)) {
+      const comment = pick(['鲜爽出来了，汤也清亮。', '不错，绿茶那股清鲜有了。'], seed);
+      return { comment, suggestion: '梅家坞那边，采的也是这口嫩芽。', action: { label: '去梅家坞走走', target: 'meijiawu' } };
+    }
+    const comment = pick(['清亮、鲜爽，豆香干净——这一泡正。', '嗯，龙井喝的就是这一口鲜，跟岩茶、红茶都不是一路。'], seed);
+    return { comment, suggestion: '好龙井的「形」也在手上——理条那一关，你过了。' };
   }
 
   // ── P2：按茶种 × 品质给评价与建议 ──

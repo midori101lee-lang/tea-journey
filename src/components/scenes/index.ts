@@ -15,6 +15,11 @@ import { TeaTableScene } from './TeaTableScene';
 import { MotherTreeScene } from './MotherTreeScene';
 import { LingguScene } from './LingguScene';
 import { TeaMarketScene } from './TeaMarketScene';
+import { HangzhouTeahouseScene } from './HangzhouTeahouseScene';
+import { HangzhouGardenScene } from './HangzhouGardenScene';
+import { HangzhouWorkshopScene } from './HangzhouWorkshopScene';
+import { HangzhouTeatableScene } from './HangzhouTeatableScene';
+import { MeijiawuScene } from './MeijiawuScene';
 
 export interface SceneFigPos { left: number; bottom: number; width: number; }
 export interface SceneEntry {
@@ -51,6 +56,19 @@ export const SCENES: Record<string, SceneEntry> = {
   // 山路（玩家主动「去山路上逛逛」到达的真实可游玩场景）
   // 背景来源：background picture/山路.png —— 山路随机偶遇的固定场景背景；NPC 仍由 NpcPortrait 透明层叠加（不并入背景）。
   mountain: { Component: WuyiEstablishingScene, bg: 'assets/scenes/mountain.webp', encounterFigure: { left: 30, bottom: 16, width: 42 } },
+
+  // ─────────── 杭州（正式背景图已全部接入） ───────────
+  // 玲姨的茶馆（正式背景 + 玲姨透明立绘叠加）
+  'hz-teahouse': { Component: HangzhouTeahouseScene, bg: 'assets/scenes/hangzhou_teahouse.webp', figure: { left: 22, bottom: 14, width: 44 }, encounterFigure: { left: 56, bottom: 16, width: 38 } },
+  // 杭州茶园（← background picture/阿青的茶园.jpg；远处茶农只是环境元素，不可交互）
+  'hz-garden': { Component: HangzhouGardenScene, bg: 'assets/scenes/hangzhou_garden.webp', figure: { left: 20, bottom: 16, width: 34 }, encounterFigure: { left: 56, bottom: 18, width: 36 } },
+  // 杭州制茶坊（正式背景；无固定 NPC，保留 figure 槽便于后续挂 NPC）
+  'hz-workshop': { Component: HangzhouWorkshopScene, bg: 'assets/scenes/hangzhou_workshop.webp', figure: { left: 26, bottom: 14, width: 44 } },
+  // 杭州茶桌：杭州专属茶桌背景（← background picture/杭州茶桌.PNG），不再借用玲姨的茶馆图；
+  // 周伯作「品茶 NPC」透明立绘叠加（同一 NPC，换章换景）。武夷山的周伯茶桌（老陈茶馆新）不受影响。
+  'hz-teatable': { Component: HangzhouTeatableScene, bg: 'assets/scenes/hangzhou_teatable.webp', figure: { left: 48, bottom: 16, width: 42 } },
+  // 梅家坞（正式背景 + 吟诗老人透明立绘；地域探索入口）
+  meijiawu: { Component: MeijiawuScene, bg: 'assets/scenes/meijiawu.webp', figure: { left: 22, bottom: 16, width: 36 } },
 };
 
 export type SceneKey = keyof typeof SCENES;

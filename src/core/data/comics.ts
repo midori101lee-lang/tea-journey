@@ -61,6 +61,24 @@ export const COMICS: Comic[] = [
       { caption: '阿秀：「你以为喝茶轻松？做茶这碗饭，累的在后头。」', art: 'axiu-talk' },
     ],
   },
+
+  // ─────────── 杭州（第二阶段）：九曲红梅茶漫画 ───────────
+  // 玩家刚亲手做完一锅，再回头看「我做的到底是什么茶」；与武夷山同一套漫画系统与画风。
+  // 内容以项目已确认的资料为准（红茶工艺：萎凋→揉捻→发酵→干燥），不为画面虚构工艺。
+  {
+    id: 'comic_jiuquhongmei',
+    regionId: 'hangzhou',
+    kind: 'process',
+    title: '你刚才做的是什么茶：九曲红梅',
+    source: '杭州地方名茶常识 · 工夫红茶（B 级）',
+    triggerNote: '做完第一锅九曲红梅（发酵）后，顺手解锁',
+    panels: [
+      { caption: '杭州的茶，不止西湖龙井。九曲红梅，是杭州的另一路——红茶。', art: 'hz-tea-hills' },
+      { caption: '鲜叶先摊开萎凋，再揉捻成条，然后堆起来发酵转红，最后烘干定香。', art: 'hongcha-flow' },
+      { caption: '做好的九曲红梅汤色红亮、滋味甜润，常带一点梅香或花香。', art: 'red-liquor' },
+      { caption: '「九曲」是这一带弯弯的山溪，「红梅」说的是那口红亮甜润——名字里，就是杭州。', art: 'meijiawu-village' },
+    ],
+  },
 ];
 
 export function getComic(id: string): Comic | undefined {

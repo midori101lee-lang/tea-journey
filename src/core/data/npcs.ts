@@ -214,6 +214,73 @@ export const NPCS: Npc[] = [
     sceneArt: 'mountain',
     portrait: 'assets/npcs/encounter/mystery_tea_person.webp',
   },
+
+  // ─────────── 杭州篇 NPC（第二阶段起步：玲姨=茶馆中枢，阿青=茶园特色） ───────────
+  {
+    id: 'lingyi',
+    name: '玲姨',
+    role: '茶馆老板',
+    coreWords: '茶生活 / 日常喝茶 / 茶点 / 茶具 / 江南',
+    knowledgeScope: [
+      '杭州的喝茶日常与茶生活',
+      '茶点、茶具这些「过日子的茶」',
+      '把玩家从茶馆引向杭州茶园',
+    ],
+    avatarBg: '#cfe0d6',
+    firstMeet: 'hz-teahouse',
+    recurring: true, // 杭州中枢：茶馆常驻，串起杭州这条线
+    sceneArt: 'hz-teahouse',
+    portrait: 'assets/npcs/hangzhou/lingyi.webp',
+  },
+  {
+    id: 'aqing',
+    name: '阿青',
+    role: '茶园里的孩子',
+    coreWords: '机灵 / 嘴硬 / 看茶 / 有点小得意',
+    knowledgeScope: [
+      '杭州茶园与看茶',
+      '茶青老嫩（从小跟着采茶看出来）',
+    ],
+    avatarBg: '#bfe0b6',
+    firstMeet: 'hz-garden',
+    recurring: false,
+    sceneArt: 'hz-garden',
+    portrait: 'assets/npcs/hangzhou/aqing.webp',
+  },
+  {
+    id: 'yinshi_laoren',
+    name: '吟诗老人',
+    role: '梅家坞的老人',
+    coreWords: '吟诗 / 梅家坞 / 茶山生活 / 旅途偶遇',
+    knowledgeScope: [
+      '茶诗、茶史与有意境的茶话',
+      '梅家坞的地域与生活气息；把玩家自然引向西湖龙井（不承担制茶教学）',
+    ],
+    avatarBg: '#b9c9b0',
+    firstMeet: 'meijiawu',
+    recurring: false,
+    sceneArt: 'meijiawu',
+    portrait: 'assets/npcs/hangzhou/yinshi_laoren.webp',
+  },
+
+  // ───── 杭州 · 制茶坊：郭叔（炒茶师傅）─────
+  // 角色定位（2026-09-11 明确的功能分工）：制茶师傅教「怎么做茶」，不承担长剧情；
+  // 周伯管品茶、玲姨管茶馆人情、吟诗老人管茶诗茶文化、阿青管茶园采茶。
+  {
+    id: 'gu_shu',
+    name: '郭叔',
+    role: '制茶坊的炒茶师傅',
+    coreWords: '手上功夫 / 火候 / 看茶做茶',
+    knowledgeScope: [
+      '绿茶/红茶制茶操作要领（做茶前的提点）',
+      '火候与手上功夫的分寸',
+    ],
+    avatarBg: '#c9b18a',
+    firstMeet: 'hz-workshop',
+    recurring: false,
+    sceneArt: 'hz-workshop',
+    portrait: 'assets/npcs/hangzhou/gu_shu.webp',
+  },
 ];
 
 export function getNpc(id: string): Npc {
@@ -230,4 +297,8 @@ export const KNOWLEDGE_OWNER: Record<string, string> = {
   '泡茶与品评': 'zhoubo',
   '外地茶山比较': 'linggu',
   '收茶与茶钱': 'laochen',
+  '杭州茶生活': 'lingyi',
+  '杭州茶园与茶青': 'aqing',
+  '杭州制茶操作与火候': 'gu_shu',
+  '茶诗与茶文化（梅家坞）': 'yinshi_laoren',
 };

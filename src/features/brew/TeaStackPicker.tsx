@@ -23,7 +23,9 @@ export default function TeaStackPicker({ onClose }: { onClose: () => void }) {
       <div className="dialog-choices">
         {inventory.map((s) => {
           const name = getTea(s.teaId).name;
-          const src = s.source === 'purchased' && s.sourceNpc ? ` · ${getNpc(s.sourceNpc).name}的摊` : '';
+          const src = s.source === 'gift'
+            ? ' · 旅途茶礼'
+            : s.source === 'purchased' && s.sourceNpc ? ` · ${getNpc(s.sourceNpc).name}的摊` : '';
           return (
             <button
               key={s.id}

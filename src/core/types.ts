@@ -23,11 +23,12 @@ export type StepId =
   | 'zuoqing'      // ★ 做青（摇青 + 静置，叶缘转朱砂红）
   | 'chao-rou'     // ★ 炒揉（双炒双揉：一个 step 两轮，决策 Q1）
   | 'roasting'     // ★ 焙火（动态指针 ×5，火功累积）
-  | 'withering'    // 通用摊晾（未来绿茶用，武夷山不使用）
-  | 'fixation'     // 通用杀青（未来绿茶用，武夷山不使用）
+  | 'withering'    // 萎凋（红茶线）
+  | 'fixation'     // ★ 杀青（绿茶线：西湖龙井的青锅）
+  | 'shaping'      // ★ 理条（绿茶线：抓·压·推，压扁挺直成形）
   | 'rolling'      // 通用揉捻
   | 'drying'       // 通用干燥
-  | 'fermentation'; // 未来红茶
+  | 'fermentation'; // 发酵（红茶线）
 
 export type FaultTag =
   | 'picking_poor'
@@ -41,7 +42,18 @@ export type FaultTag =
   | 'chaoqing_over'
   | 'rolling_broken'
   | 'roast_hasty'
-  | 'roast_over';
+  | 'roast_over'
+  // 红茶工序（杭州·九曲红梅）：萎凋 / 发酵 / 烘干
+  | 'wither_short'
+  | 'wither_over'
+  | 'ferment_short'
+  | 'ferment_over'
+  | 'drying_over'
+  // 绿茶工序（杭州·西湖龙井）：杀青 / 理条
+  | 'fixation_under'
+  | 'fixation_over'
+  | 'shaping_loose'
+  | 'shaping_broken';
 
 /** 工艺映射表（数据化）：每个 step 说清自己对应现实的哪道工序 */
 export interface StepMeta {
@@ -79,8 +91,10 @@ export interface TeaCopy {
 /** 采茶游戏化配置（仅游戏参数，不混真实茶学事实）。
  * 不同茶区未来可在此给出不同采摘重点：武夷山=开面采/茶梢成熟度。 */
 export interface PickingConfig {
-  pickingMethod: 'open-face';     // 采摘方式：开面采（游戏化标签）
-  targetMaturity: 'middle-open';  // 目标成熟度：中开面
+  /** 采摘方式的游戏化标签：开面采（岩茶/红茶，看茶梢成熟度）/ 嫩芽采（绿茶，看一芽一叶）。 */
+  pickingMethod: 'open-face' | 'bud';
+  /** 目标成熟度：中开面（开面采）/ 一芽一叶（嫩芽采）。 */
+  targetMaturity: 'middle-open' | 'bud-one-leaf';
   attemptCount: number;           // 本篓可采摘机会总数
   basketNeed: number;             // 采满几梢算「一篓」
   tolerance: number;              // 采茶容错：影响 good/normal/rough 判定
@@ -101,13 +115,14 @@ export type UnlockCondition =
   | { type: 'initial' }                                   // 初始可做
   | { type: 'exploration'; note: string }                 // 探索触发
   | { type: 'motherTree'; note: string }                  // 母树/游历内容触发
+  | { type: 'flag'; flag: string; note: string }          // 指定 flag 触发（如龙井待梅家坞解锁）
   | { type: 'story'; note: string };                      // 剧情线索触发
 
 export interface Tea {
   id: string;
   name: string;              // 肉桂 / 水仙 / 大红袍
   fullName: string;          // 武夷岩茶 · 肉桂
-  category: 'yancha';
+  category: 'yancha' | 'hongcha' | 'green';  // 岩茶 / 红茶 / 绿茶（游戏内分类，用于界面标签）
   regionId: string;
   basePrice: Record<Grade, number>;  // 游戏自有经济，非现实价格
   // 大红袍不做「高级等级茶」，解锁由内容触发（M2）
@@ -153,6 +168,13 @@ export interface StepParams {
   hasteThreshold?: number;               // 火气累积上限
   toleranceByProficiency?: number;       // 熟练度带来的额外宽度（0..1）
   basketQuality?: BasketQuality;         // 采茶产出：贯穿后续步骤，轻量影响判断窗口（good 等价原行为）
+  // 红茶工序（杭州·九曲红梅）：萎凋 / 发酵——仅游戏参数，非现实工艺数字
+  moistureTarget?: [number, number];     // 萎凋：含水率目标区间（越小越干）
+  moistureRate?: number;                 // 萎凋：走水速度
+  fermentTarget?: [number, number];      // 发酵：目标区间（颜色/香气转红的程度）
+  fermentRate?: number;                  // 发酵：推进速度
+  // 绿茶工序（杭州·西湖龙井）：杀青 / 理条——仅游戏参数
+  gestureCount?: number;                 // 理条：每轮手法序列长度
 }
 
 export interface ProcessingRecipe {
@@ -191,6 +213,8 @@ export interface ProcessingResult {
   faultReason?: string;  // 失败时的可归因原因
   /** 结果页「最值得注意」：有 fault=影响最大的那条自然语言；无 fault=一句正向反馈。由 scoring 层生成，UI 只负责呈现。 */
   highlight?: string;
+  /** 各工序的自然语言小结（供结果页逐环节回顾「我这锅茶是怎么做出来的」；只有文案，没有数值面板）。 */
+  stepNotes?: { step: StepId; text: string }[];
   value: number;         // 可售茶钱
   roastLevel: string;    // 轻火 / 中火 / 足火（游戏过程结果标签，不代表现实品质绝对判断）
   faults: FaultTag[];
@@ -211,12 +235,17 @@ export interface TeaStack {
   unitValue: number;
   roastLevel: string;
   firstMadeAt: string;
-  /** 来源：made=自己制作，purchased=茶集市买来的。仅后台记录，前端不展示、不区分两套库存。 */
-  source?: 'made' | 'purchased';
+  /** 来源：made=自己制作（我的手艺），purchased=茶集市买来的（我的发现），gift=NPC/旅途赠礼（我的旅途）。
+   *  仅后台记录，仍是一套库存，不区分两套。 */
+  source?: 'made' | 'purchased' | 'gift';
   /** 买来的茶的摊主 id（仅 purchased）。用于「来源」一句展示，不建第二套库存。 */
   sourceNpc?: string;
   /** 购买时附带的小故事标记（仅 purchased）：deal=捡漏（品质不错却便宜）/ overpriced=买贵（普通茶却偏贵）。仅用于周伯品茶反馈，不含任何数值奖惩。 */
   bargain?: 'deal' | 'overpriced';
+  /** 一次性旅途赠礼标记（仅 gift），如 'farewell_gift_wuyishan'。
+   *  供未来 NPC 识别「玩家带着上一座茶山的茶」；同时是礼物茶「不进入普通出售」的判据。
+   *  只是库存上的一个轻量标记，不新建来源历史系统。 */
+  giftTag?: string;
 }
 
 export interface Player {
@@ -363,6 +392,9 @@ export interface Dialogue {
   unlocksClue?: string;
   /** 赠予一件旅行纪念物（明信片 / 地方纪念物等），进入「游记收藏」而非茶叶背包。 */
   givesSouvenir?: string;
+  /** 赠予若干份茶（如区域告别礼「武夷山茶礼」）。grade 沿用现有 Grade 档；
+   *  giftTag 为一次性旅途赠礼标记（入篓时 source='gift'，不参与普通出售）。 */
+  givesTea?: { teaId: string; grade: Grade; count: number; giftTag?: string }[];
 }
 
 // ─────────── 旅行纪念物（明信片 / 地方纪念物；V0.2） ───────────
@@ -373,12 +405,25 @@ export interface SouvenirDef {
   id: string;
   /** 所属茶区（用于「茶山足迹 → 某茶区的旅行收藏」；缺省按武夷山）。 */
   regionId?: string;
-  title: string;             // 大红袍母树明信片
-  photo: string;             // 真实实景照片（public 相对路径，经 BASE_URL 解析）
-  caption: string;           // 照片下方小字：大红袍母树
+  /** 纪念物形态：postcard=实景明信片（默认，需 photo）；note=文字诗笺；couplet=竖长条茶联（无照片，逐行联语）。 */
+  kind?: 'postcard' | 'note' | 'couplet';
+  title: string;             // 大红袍母树明信片 / 梅家坞诗笺
+  /** 真实实景照片（public 相对路径，经 BASE_URL 解析）。postcard 必填；note 可省；couplet=上联图。 */
+  photo?: string;
+  /** 第二张图（couplet 形态=下联图）。上/下联仍是同一收藏品，不拆成两件。 */
+  photo2?: string;
+  caption?: string;          // 照片下方小字：大红袍母树
   place: string;             // 落款地点：福建 · 武夷山 · 九龙窠
-  backText: string;          // 背面少量说明文字
+  backText: string;          // 背面少量说明文字（note 形态下为一句短说明）
   yanboNote?: string;        // 岩伯（或赠予者）留言
+  /** 赠予者署名（缺省「岩伯」）：用于留言标题与诗笺落款。 */
+  giverName?: string;
+  /** 诗笺正文（kind='note' 时逐行显示）。 */
+  lines?: string[];
+  /** 诗句出处标注。 */
+  attribution?: string;
+  /** 收藏描述（如「陶冶情操，有缘再见。」），与茶联等其它收藏区分。 */
+  motto?: string;
   source?: string;          // 照片来源标注
 }
 
@@ -423,6 +468,8 @@ export interface EncounterEvent {
   weight: number;                   // 该 NPC 的「同场景事件池」内权重
   requires?: (player: Player) => boolean; // 可选守卫（V0.1 暂未大量使用）
   lines: DialogueLine[];            // 复用对白结构（仅展示；DialogueLine.choices 字段忽略）
+  /** 按茶区覆盖台词（可选）：键=regionId。偶遇 NPC 跨茶区复用时说当地的话，缺省回通用 lines。 */
+  linesByRegion?: Record<string, DialogueLine[]>;
   choices?: EncounterChoice[];      // 有则显示分支按钮；无则单「继续」应用 outcome
   outcome?: EncounterOutcome;       // 无 choices 时应用
 }
@@ -454,7 +501,7 @@ export interface Comic {
 
 // ─────────── 茶区 / 地点 / 线索 ───────────
 
-export type LocationId = 'teahouse' | 'garden' | 'workshop' | 'teatable' | 'market' | 'mothertree';
+export type LocationId = 'teahouse' | 'garden' | 'workshop' | 'teatable' | 'market' | 'mothertree' | 'meijiawu';
 
 export interface LocationDef {
   id: LocationId;
@@ -463,6 +510,8 @@ export interface LocationDef {
   locked?: boolean;
   accent: string;         // 地点主题色
   blurb: string;
+  /** 点击后进入的场景 key（缺省用 id）。多茶区共用同一批功能场景时，用它在数据里绑定本地场景。 */
+  scene?: string;
 }
 
 export interface Region {

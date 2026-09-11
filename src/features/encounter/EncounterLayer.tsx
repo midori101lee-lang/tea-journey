@@ -148,7 +148,10 @@ function EncounterDialogue({
   }, [lock]);
 
   // 跨场景再遇：复用 metNpcs，不新建关系/好感度系统。
-  const lines = metBefore ? [{ text: '诶，又见面了。' }, ...ev.lines] : ev.lines;
+  // 台词按茶区差异化：同一 NPC 换了茶区就说当地的话（linesByRegion 优先，缺省回通用 lines）。
+  const regionLines = ev.linesByRegion?.[player.currentRegion ?? 'wuyishan'];
+  const baseLines = regionLines ?? ev.lines;
+  const lines = metBefore ? [{ text: '诶，又见面了。' }, ...baseLines] : baseLines;
 
   function apply(o: EncounterOutcome) {
     if (o.setsFlags) setFlags(o.setsFlags);

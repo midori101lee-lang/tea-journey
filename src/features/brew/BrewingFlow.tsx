@@ -3,7 +3,9 @@ import type { ProcessingResult, Difficulty, BrewOutcome, Grade } from '../../cor
 import { KettleSvg, TeaLeafSvg } from '../../components/art/Art';
 import { teaVisual, brewLiquor } from '../../core/data/teaVisuals';
 import { useGame } from '../../store/gameStore';
-import { getTeaWare, MARKET_TEA_WARES, ownedWareOfType } from '../../core/data/teaWares';
+import { getTea } from '../../core/data/teas';
+import { getTeaWare, MARKET_TEA_WARES, ownedWareOfType, DEFAULT_BREW_WARE } from '../../core/data/teaWares';
+import { GaiwanSvg } from '../../components/art/Art';
 import type { TeaWare } from '../../core/data/teaWares';
 import {
   steepProfile,
@@ -69,8 +71,21 @@ const PHASE_WARES: Record<string, WareRole[]> = {
   warm: [], discard: [], add: ['caddy'], pour: [], smell: [], steep: ['gongdao'], taste: ['gongdao', 'cup', 'tray'],
 };
 
+/** 茶名一律取自茶数据（按 teaId），不再对未知茶种回退成「大红袍」——避免跨章节串线。 */
 function teaLabel(id: string) {
-  return id === 'rougui' ? '肉桂' : id === 'shuixian' ? '水仙' : id === 'wangba' ? '景区王霸茶' : '大红袍';
+  try { return getTea(id).name; } catch { return '茶'; }
+}
+
+/** 闻香一句话：按茶种给不同香气描述；未知茶种给中性描述（不回退成岩茶口吻）。 */
+function aromaNote(teaId: string): string {
+  const notes: Record<string, string> = {
+    rougui: '桂皮般的香气一下子窜了出来。',
+    shuixian: '清幽的兰花香，慢慢浮了出来。',
+    dahongpao: '香气不急着冒出来，倒像是慢慢铺开。',
+    jiuquhongmei: '甜香里透出一丝梅子般的气息，红茶的暖香。',
+    longjing: '豆香清鲜，像刚剥开的嫩栗子。',
+  };
+  return notes[teaId] ?? '香气淡淡的，静静飘着。';
 }
 
 function ZhouComment(result: ProcessingResult, brewScore: number): string {
@@ -88,6 +103,23 @@ function ZhouComment(result: ProcessingResult, brewScore: number): string {
   // 买贵：普通茶却偏贵——周伯不扣钱、不报「错误」，只轻轻点一句。
   if (result.bargain === 'overpriced') {
     return '周伯：「茶不差，自己喝没问题……不过这价，下次可以再看看。」';
+  }
+  // 红茶（杭州 · 九曲红梅）：按红茶口吻说，不套岩茶的「岩骨花香」。
+  const category = (() => { try { return getTea(result.teaId).category; } catch { return 'yancha'; } })();
+  if (category === 'hongcha') {
+    if (result.grade === 'fail') return '周伯：「……能喝。发酵没走匀，味有点闷。」';
+    if (brewScore < 50) return '周伯：「出汤早了，甜香还没发出来。」';
+    if (brewScore > 85) return '周伯：「红亮甜润，这一泡正。跟武夷山那路，完全是两回事。」';
+    if (brewScore > 72) return '周伯：「甜香出来了，汤也顺——不错。」';
+    return '周伯：「自己做的，喝着就是不一样。」';
+  }
+  // 绿茶（杭州 · 西湖龙井）：清亮鲜爽、豆香回甘，不套岩茶的「岩骨花香」与红茶的「甜润」。
+  if (category === 'green') {
+    if (result.grade === 'fail') return '周伯：「……能喝。青气还压着，火候没到。」';
+    if (brewScore < 50) return '周伯：「出汤早了，鲜爽还没打开——绿茶就是要那一口鲜。」';
+    if (brewScore > 85) return '周伯：「清亮、鲜爽，豆香干净。这一泡，是龙井的样子。」';
+    if (brewScore > 72) return '周伯：「鲜爽出来了，汤也清——不错。」';
+    return '周伯：「自己炒的，喝着就是不一样。」';
   }
   if (result.grade === 'fail') return '周伯：「……能喝。下次火别那么猛。」';
   if (brewScore < 50) return '周伯：「能喝，就是出汤早了，淡了点。」';
@@ -136,6 +168,21 @@ function BrewWare({ ware, teaId, grade, level = 0, liquidColor, leaves = false, 
   liquidColor?: string; leaves?: boolean; steam?: boolean; leafColor?: string; size?: number;
 }) {
   const color = liquidColor ?? (teaId && grade && level > 0.05 ? brewLiquor(teaId, level, grade) : undefined);
+  // 没买过任何茶具时的默认容器：素盖碗用内联 SVG 绘制（GaiwanSvg 自带汤/叶/汽状态），不加载位图。
+  if (!ware.asset) {
+    return (
+      <div className="brew-ware" style={{ width: size, height: Math.round(size * 0.93) }}>
+        <GaiwanSvg
+          width={size}
+          liquor={color}
+          leaves={leaves}
+          steam={steam}
+          leafColor={leafColor ?? '#5c4a34'}
+          lid
+        />
+      </div>
+    );
+  }
   return (
     <div className="brew-ware" style={{ width: size, height: Math.round(size * 0.93) }}>
       <img src={`${import.meta.env.BASE_URL}${ware.asset}`} alt={ware.name} className="brew-ware-img" draggable={false} />
@@ -147,20 +194,38 @@ function BrewWare({ ware, teaId, grade, level = 0, liquidColor, leaves = false, 
 }
 
 /**
- * 泡茶前的轻量「选茶具」步骤：横向卡片展示可泡茶具，已拥有 / 随身白瓷盖碗可选，
- * 未拥有显示「未拥有」并禁用。默认选中白瓷盖碗（随身基础款，保证首泡不卡住）。
+ * 泡茶前的轻量「选茶具」步骤：**只列玩家真正拥有的可泡茶具**——
+ * 没买过的茶具（包括白瓷盖碗）一律「未拥有」并禁用，章节推荐不代表自动拥有；
+ * 一件可泡茶具都没有时，退回茶桌上常备的素盖碗（内联 SVG，非商品）。
  */
 function SelectWarePhase({ teaName, owned, onSelect }: { teaName: string; owned: string[]; onSelect: (id: string) => void }) {
-  const brewable = MARKET_TEA_WARES.filter((w) => w.usableForBrew);
-  const isAvailable = (w: TeaWare) => w.id === 'white-gaiwan' || owned.includes(w.id);
-  const [picked, setPicked] = useState('white-gaiwan');
+  const ownedBrewable = MARKET_TEA_WARES.filter((w) => w.usableForBrew && owned.includes(w.id));
+  // hooks 必须无条件调用（有无茶具两个分支都要走同一 hook 序列）。
+  const [picked, setPicked] = useState(ownedBrewable[0]?.id ?? DEFAULT_BREW_WARE.id);
+  // 一件可泡茶具都没有 → 不展示商品列表，直接给默认素盖碗（不卡住首泡）。
+  if (ownedBrewable.length === 0) {
+    return (
+      <div className="brew-select">
+        <div className="brew-select-title">先用手边这只</div>
+        <p className="hint">「{teaName}」要用一只茶具来泡。你还没买过茶具——先用工夫茶桌上那只素盖碗吧，想要讲究的，去茶集市挑一只。</p>
+        <div className="ware-cards">
+          <div className="ware-card active" style={{ cursor: 'default' }}>
+            <GaiwanSvg width={84} />
+            <span className="ware-name">{DEFAULT_BREW_WARE.name}</span>
+            <span className="ware-own">常备</span>
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={() => onSelect(DEFAULT_BREW_WARE.id)}>就用它泡</button>
+      </div>
+    );
+  }
   return (
     <div className="brew-select">
       <div className="brew-select-title">今天用哪套茶具？</div>
-      <p className="hint">「{teaName}」要用一只茶具来泡。挑一只你有的——白瓷盖碗是随身带着的。</p>
+      <p className="hint">「{teaName}」要用一只茶具来泡。挑一只你拥有的——没买过的茶具用不了。</p>
       <div className="ware-cards">
-        {brewable.map((w) => {
-          const avail = isAvailable(w);
+        {MARKET_TEA_WARES.filter((w) => w.usableForBrew).map((w) => {
+          const avail = owned.includes(w.id);
           const active = picked === w.id;
           return (
             <button
@@ -168,11 +233,11 @@ function SelectWarePhase({ teaName, owned, onSelect }: { teaName: string; owned:
               type="button"
               className={`ware-card${active ? ' active' : ''}`}
               disabled={!avail}
-              onClick={() => setPicked(w.id)}
+              onClick={() => avail && setPicked(w.id)}
             >
               <img src={`${import.meta.env.BASE_URL}${w.asset}`} alt={w.name} className="ware-thumb" draggable={false} />
               <span className="ware-name">{w.name}</span>
-              <span className="ware-own">{avail ? (w.id === 'white-gaiwan' ? '随身' : '已拥有') : '未拥有'}</span>
+              <span className="ware-own">{avail ? '已拥有' : '未拥有'}</span>
             </button>
           );
         })}
@@ -211,7 +276,7 @@ export default function BrewingFlow({ result, difficulty, onDone }: Props) {
   if (!selectedWareId) {
     return <SelectWarePhase teaName={teaName} owned={owned} onSelect={setSelectedWareId} />;
   }
-  const ware = getTeaWare(selectedWareId)!;
+  const ware = selectedWareId === DEFAULT_BREW_WARE.id ? DEFAULT_BREW_WARE : getTeaWare(selectedWareId) ?? DEFAULT_BREW_WARE;
 
   const header = (label: string, hint: string) => (
     <div>
@@ -457,11 +522,7 @@ function SmellPhase({ teaId, grade, ware, onAdvance }: { teaId: string; grade: G
   const lifted = pos.x < 86 || pos.x > 174 || pos.y < 96;
   useEffect(() => { if (lifted) setOpen(true); }, [lifted]);
 
-  const note =
-    teaId === 'rougui' ? '桂皮般的香气一下子窜了出来。'
-    : teaId === 'shuixian' ? '清幽的兰花香，慢慢浮了出来。'
-    : teaId === 'dahongpao' ? '香气不急着冒出来，倒像是慢慢铺开。'
-    : '香气淡淡的，不怎么明显。';
+  const note = aromaNote(teaId);
 
   return (
     <>

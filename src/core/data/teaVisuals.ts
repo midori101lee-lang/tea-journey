@@ -33,6 +33,18 @@ export const TEA_VISUAL: Record<string, TeaVisual> = {
     liquorDeep: '#9a5a2a',
     leafColor: '#574226',
   },
+  // 杭州 · 九曲红梅：红亮茶汤、甜润，偏暖。
+  jiuquhongmei: {
+    liquorLight: '#e0915a', // 红亮 · 初汤
+    liquorDeep: '#a83a2a',  // 深红 · 浓汤
+    leafColor: '#4a2e22',
+  },
+  // 杭州 · 西湖龙井：嫩黄绿干茶、清透黄绿汤色（不是荧光绿，也不是深绿蔬菜色）。
+  longjing: {
+    liquorLight: '#e6e9ac',
+    liquorDeep: '#aab562',
+    leafColor: '#a8ae58',
+  },
 };
 
 export function teaVisual(teaId: string): TeaVisual {

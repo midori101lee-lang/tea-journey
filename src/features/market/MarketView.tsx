@@ -57,7 +57,9 @@ export default function MarketView() {
   }
 
   // ───── 卖茶（沿用 V0.2） ─────
-  const stacks = player.inventory;
+  // 旅途赠礼（老陈送的武夷山茶礼等）不进普通出售列表：仍可正常泡饮，但保留「我的旅途」身份、不折成茶钱。
+  const stacks = player.inventory.filter((s) => s.source !== 'gift');
+  const giftCount = player.inventory.filter((s) => s.source === 'gift').reduce((n, s) => n + s.count, 0);
   const market = todayMarket(player.day);
   const priceOf = (s: TeaStack) => prices[s.id] ?? suggestedPrice(s);
   const setPrice = (id: string, delta: number) => {
@@ -162,6 +164,9 @@ export default function MarketView() {
               <div className="market-quote-title">{market.headline}</div>
               <div className="hint">{market.note}</div>
             </div>
+            {giftCount > 0 && (
+              <p className="hint">🎒 茶篓里还有 {giftCount} 份从茶山带回的茶礼——那个不卖，留着自己喝。</p>
+            )}
             {stacks.length === 0 ? (
               <p className="hint">背包里还没有自己做的茶。先去采茶、做一锅吧。</p>
             ) : !results ? (
