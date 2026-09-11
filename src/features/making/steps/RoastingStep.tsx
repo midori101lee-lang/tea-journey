@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import type { StepOutcome, StepParams, FaultTag, Difficulty } from '../../../core/types';
 import { RoastPotSvg } from '../../../components/art/Art';
 import { getTea } from '../../../core/data/teas';
+import { computeRoastBand } from '../../../core/making/roastBand';
 
 interface Props {
   params: StepParams;
   difficulty: Difficulty;
   teaId: string;
   proficiency: number;
+  day: number;
   zuoqingScore?: number;
   onDone: (o: StepOutcome) => void;
 }
@@ -22,7 +24,7 @@ type Zone = 'center' | 'edge' | 'warn' | 'bad';
  * 手感优化（V0.2 首玩修正）：指针持续运动 → 玩家主动点击 → 在当前位置锁定 → 判定。
  * 不采用「鼠标碰到绿区自动判定」。降速、加宽有效区、减小随机漂移、加接近提示、加容错。
  */
-export default function RoastingStep({ params, difficulty, teaId, proficiency, zuoqingScore = 60, onDone }: Props) {
+export default function RoastingStep({ params, difficulty, teaId, proficiency, day, zuoqingScore = 60, onDone }: Props) {
   const casual = difficulty === 'casual';
   const taps = params.rounds ?? 5;
   const speed = params.swingSpeed ?? 0.9; // 降速：周期约 7s，更从容
@@ -46,11 +48,18 @@ export default function RoastingStep({ params, difficulty, teaId, proficiency, z
   const carry = (0.5 - zuoqingScore / 200) * 0.12;
 
   function bandFor(i: number) {
-    const drift = (b0.driftPerRound ?? 0) * i * (Math.random() > 0.5 ? 1 : -1);
-    const rand = (Math.random() - 0.5) * (b0.randomDrift ?? 0.03);
-    const center = Math.max(0.25, Math.min(0.78, b0.centerBase + bias.center + carry + drift + rand));
-    const width = Math.max(0.14, b0.widthBase + bias.width + profTol + basketTol - (b0.driftPerRound ?? 0) * i * 0.5);
-    return { center, width };
+    return computeRoastBand({
+      teaId,
+      day,
+      proficiency,
+      tapIndex: i,
+      band: b0,
+      biasCenter: bias.center,
+      biasWidth: bias.width,
+      profTol,
+      basketTol,
+      carry,
+    });
   }
 
   // 指针摆动（持续运动，玩家点击锁定）

@@ -9,7 +9,20 @@ export interface SaveData {
 }
 
 const KEY = 'teaworld.save.v3';
+const BACKUP_KEY = 'teaworld.save.v3.backup';
+const ARCHIVE_KEY = 'teaworld.save.v3.archive';
 const CURRENT_VERSION = 3;
+
+// localStorage 操作的统一安全封装：隐私模式下静默降级为内存，不抛错
+function readRaw(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function writeRaw(key: string, val: string): boolean {
+  try { localStorage.setItem(key, val); return true; } catch { useMemory = true; return false; }
+}
+function removeRaw(key: string): void {
+  try { localStorage.removeItem(key); } catch { /* ignore */ }
+}
 
 export function defaultPlayer(): Player {
   return {
@@ -86,6 +99,8 @@ export function loadSave(): SaveData {
     if (raw) {
       const data = safeParse(raw);
       if (data) return data;
+      // 存档损坏：隔离到 .corrupt，避免下次又解析失败陷入循环（不立即白屏，回退新档）
+      try { localStorage.setItem(KEY + '.corrupt', raw); localStorage.removeItem(KEY); } catch { /* ignore */ }
     }
   } catch {
     useMemory = true; // 隐私模式：降级为内存，游戏照常能玩
@@ -96,12 +111,51 @@ export function loadSave(): SaveData {
 
 export function persist(player: Player): void {
   const data: SaveData = { version: CURRENT_VERSION, player };
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-  } catch {
-    useMemory = true;
+  // 写入前：若已有有效存档，先复制为 backup（防一次错误写入直接破坏存档）
+  const existing = readRaw(KEY);
+  if (existing) {
+    try {
+      if (safeParse(existing)) writeRaw(BACKUP_KEY, existing);
+    } catch { /* ignore */ }
   }
+  writeRaw(KEY, JSON.stringify(data));
   memoryStore = data;
+}
+
+// ─────────── 存档查询 / 清空 / 备份 ───────────
+
+/** 是否存在有效存档（含隐私模式内存兜底）。用于启动页判断是否显示「继续旅程」。 */
+export function hasSave(): boolean {
+  if (useMemory && memoryStore) return true;
+  const raw = readRaw(KEY);
+  return raw ? safeParse(raw) !== null : false;
+}
+
+/** 启动前检查存档健康度：none=无存档，ok=正常，corrupt=存在但解析失败（已自动隔离）。 */
+export function inspectSave(): 'none' | 'ok' | 'corrupt' {
+  if (useMemory && memoryStore) return 'ok';
+  const raw = readRaw(KEY);
+  if (!raw) return 'none';
+  return safeParse(raw) ? 'ok' : 'corrupt';
+}
+
+/** 重新开始前把当前存档另存到 archive，作为一次保险（不覆盖新存档）。 */
+export function archiveCurrentSave(): void {
+  const raw = readRaw(KEY);
+  if (raw) writeRaw(ARCHIVE_KEY, raw);
+}
+
+/** 仅清除当前生效存档与上一版 backup（保留 archive 供回滚参考）。 */
+export function wipeActiveSave(): void {
+  removeRaw(KEY);
+  removeRaw(BACKUP_KEY);
+}
+
+/** 彻底清空所有存档（含 archive / backup），一般用于硬重置。 */
+export function clearSave(): void {
+  removeRaw(KEY);
+  removeRaw(BACKUP_KEY);
+  removeRaw(ARCHIVE_KEY);
 }
 
 // ─────────── 胔包逻辑 ───────────

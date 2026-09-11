@@ -19,16 +19,29 @@ export default function ResultView() {
       <h2 className="h-serif" style={{ margin: '6px 0 2px' }}>{tea.fullName}</h2>
 
       <div style={{ background: 'var(--paper-2)', border: '1px solid var(--ochre)', borderRadius: 12, padding: 20, marginTop: 12 }}>
+        <div className="hint" style={{ letterSpacing: '0.2em' }}>品质等级</div>
         <div className="h-serif" style={{ fontSize: 30, letterSpacing: '0.3em', color: isFail ? 'var(--rock)' : 'var(--seal)' }}>
           {GRADE_LABEL[lastResult.grade]}
         </div>
         <div style={{ textAlign: 'center', margin: '12px 0' }}>
           <TeaLeavesPile width={150} color={lastResult.visuals.dryColor} curled={lastResult.visuals.shape === 'curled'} broken={lastResult.visuals.shape === 'broken'} />
         </div>
+
+        <div className="hint" style={{ textAlign: 'left', marginTop: 6 }}>这一锅怎么样</div>
         <p className="note">{lastResult.comment}</p>
-        {lastResult.faultReason && (
-          <div className="hint" style={{ color: 'var(--cliff)' }}>{lastResult.faultReason}</div>
+
+        {lastResult.highlight && (
+          <>
+            <div className="hint" style={{ textAlign: 'left', marginTop: 6 }}>这次最值得注意</div>
+            <div
+              className="note"
+              style={{ color: lastResult.faultReason ? 'var(--cliff)' : 'var(--bamboo)', marginTop: 2 }}
+            >
+              {lastResult.highlight}
+            </div>
+          </>
         )}
+
         <div className="h-serif" style={{ marginTop: 12 }}>可售：{lastResult.value} 茶钱</div>
         <div className="hint">火功：{lastResult.roastLevel}（本次过程的结果标签，不表示现实品质高低）</div>
         <div className="hint" style={{ marginTop: 8 }}>🎒 已收入茶篓</div>

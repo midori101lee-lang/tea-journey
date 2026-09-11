@@ -496,14 +496,45 @@ body {
   z-index: 4;
 }
 .brew-item:active { cursor: grabbing; }
-.brew-gaiwantarget { position: absolute; left: 85px; top: 150px; z-index: 2; }
+.brew-gaiwantarget { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; }
 .brew-gongdao { position: absolute; z-index: 2; }
+.brew-gongdao-img { width: 104px; height: auto; pointer-events: none; filter: drop-shadow(0 3px 4px rgba(80, 60, 40, .18)); }
+.brew-gongdao-fill { position: absolute; left: 50%; bottom: 28%; width: 56%; transform: translateX(-50%); border-radius: 6px; opacity: .82; transition: height .12s; }
+/* 固定茶具舞台底排：茶叶罐(左下)，与其他茶具同一水平线、不挡中央盖碗 */
+.brew-caddy { position: absolute; left: 8px; top: 196px; width: 96px; height: 96px; z-index: 3; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.brew-caddy-img { width: 84px; height: auto; object-fit: contain; pointer-events: none; filter: drop-shadow(0 3px 5px rgba(80, 60, 40, .25)); user-select: none; -webkit-user-select: none; }
+/* 罐口：打开后才显深色，表示可取茶 */
+.brew-caddy-mouth { position: absolute; left: 50%; top: 30%; width: 44px; height: 14px; transform: translateX(-50%); background: radial-gradient(ellipse at center, #3c2c1c 0%, #6b513a 75%, rgba(107, 81, 58, 0) 100%); border-radius: 50%; opacity: 0; transition: opacity .25s; pointer-events: none; }
+.brew-caddy.open .brew-caddy-mouth { opacity: 1; }
+/* 罐盖：轻量位移表示开合（纯 SVG，无额外图片） */
+.brew-caddy-lid { position: absolute; left: 50%; top: 26%; width: 54px; height: 24px; transform: translateX(-50%); transition: transform .28s ease, opacity .2s; pointer-events: none; }
+.brew-caddy.open .brew-caddy-lid { transform: translate(-50%, -22px) rotate(-12deg); opacity: .85; }
+.brew-caddy-hint { position: absolute; left: 50%; top: -12px; transform: translateX(-50%); background: var(--bamboo); color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 8px; white-space: nowrap; pointer-events: none; }
+
+/* ───── 品饮阶段 · 小茶席（茶盘作底座，主品饮器 + 品茗杯坐在盘内） ───── */
+/* 此阶段是茶席感最强的画面，茶盘 ONLY 在此出现，且不铺满整屏、只作承托底座 */
+.brew-stage-taste { background: linear-gradient(180deg, #f6f1e4 0%, #ece2cb 100%); }
+.brew-taste-tray { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); width: 350px; height: 210px; z-index: 1; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.brew-taste-tray-img { width: 100%; height: auto; max-height: 210px; object-fit: contain; opacity: .95; filter: drop-shadow(0 4px 8px rgba(80, 60, 40, .18)); }
+/* 主品饮器（公道杯或盖碗）：居中坐在茶盘内 */
+.brew-taste-primary { position: absolute; left: 50%; top: 110px; transform: translateX(-50%); z-index: 2; }
+/* 品茗杯：居侧，同样完整落在茶盘内，盛着这一泡 */
+.brew-taste-cup { position: absolute; right: 24px; bottom: 40px; width: 66px; height: 66px; z-index: 3; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.brew-taste-cup-img { width: 100%; height: auto; object-fit: contain; filter: drop-shadow(0 3px 5px rgba(80, 60, 40, .22)); }
+.brew-taste-cup-fill { position: absolute; left: 50%; bottom: 26%; width: 52%; height: 44%; transform: translateX(-50%); border-radius: 6px; opacity: .82; }
+.brew-taste-actions { display: flex; gap: 10px; }
+/* 投茶阶段「取茶方式」轻量选择（不弹窗） */
+.brew-choice { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.brew-choice-label { font-size: 13px; color: var(--ink-2); }
+.brew-choice-btn { font-size: 13px; padding: 5px 11px; border-radius: 16px; border: 1px solid var(--ochre); background: var(--paper-2); color: var(--ink-2); cursor: pointer; font-family: var(--sans); }
+.brew-choice-btn.active { background: var(--bamboo); border-color: var(--bamboo); color: #fff; }
 .brew-splash {
   position: absolute; width: 12px; height: 12px; border-radius: 50%;
   background: radial-gradient(circle, #cfe6f2 0%, #9fc0d8 70%, rgba(159,192,216,0) 100%);
   pointer-events: none; z-index: 3;
 }
-.brew-foot { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+/* 操作区（ActionBar）：永远在 TeaStage 外部，茶具无法覆盖按钮，按钮也无法覆盖茶具 */
+.brew-actionbar { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .brew-meter { height: 10px; border-radius: 5px; background: #e8e0d0; overflow: hidden; }
 .brew-meter > i { display: block; height: 100%; background: var(--liquor); transition: width .12s; }
 .brew-tip { font-size: 13px; color: var(--ink-2); margin: 0; }
@@ -803,7 +834,7 @@ body {
 
 /* ───── 茶世界 / Tea World（四宫格茶区旅行卡片） ───── */
 .tw { display: flex; flex-direction: column; gap: 14px; }
-.tw-head { text-align: center; padding: 4px 0 2px; }
+.tw-head { position: relative; text-align: center; padding: 4px 0 2px; }
 .tw-title { font-family: var(--serif); font-size: 30px; margin: 0; letter-spacing: 0.12em; color: var(--ink); }
 .tw-title-en { font-size: 12px; letter-spacing: 0.42em; text-transform: uppercase; color: var(--ink-3); margin: 2px 0 8px; }
 .tw-sub { font-family: var(--serif); font-size: 15px; color: var(--ink); margin: 0; }
@@ -887,3 +918,58 @@ body {
   .tw-card { aspect-ratio: 1 / 1.08; }
   .tw-name { font-size: 20px; }
 }
+
+/* ───── 茶世界右上角轻量菜单（保存进度 / 重新开始） ───── */
+.tw-menu { position: absolute; top: 2px; right: 2px; }
+.tw-menu-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid rgba(200, 169, 138, 0.55); background: var(--paper-2);
+  color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer;
+  box-shadow: 0 1px 4px rgba(40, 28, 16, 0.12);
+}
+.tw-menu-pop {
+  position: absolute; top: 42px; right: 0; z-index: 40;
+  min-width: 148px; padding: 6px;
+  background: var(--paper-2); border: 1px solid rgba(200, 169, 138, 0.55);
+  border-radius: 12px; box-shadow: 0 6px 20px rgba(40, 28, 16, 0.18);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.tw-menu-item {
+  appearance: none; -webkit-appearance: none; margin: 0;
+  padding: 9px 12px; border: 0; border-radius: 8px; background: transparent;
+  text-align: left; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer;
+}
+.tw-menu-item:hover { background: rgba(200, 169, 138, 0.18); }
+
+/* ───── 启动页 / Start Screen（继续旅程 / 新的茶旅） ───── */
+.start-screen { display: grid; place-items: center; min-height: 70vh; padding: 16px; }
+.start-card {
+  width: 100%; max-width: 360px; padding: 28px 24px 22px;
+  background: var(--paper-2); border: 1px solid rgba(200, 169, 138, 0.5);
+  border-radius: 18px; box-shadow: 0 8px 28px rgba(40, 28, 16, 0.14);
+  text-align: center;
+}
+.start-title { font-family: var(--serif); font-size: 38px; margin: 0; letter-spacing: 0.18em; color: var(--ink); }
+.start-sub { font-size: 12px; letter-spacing: 0.06em; color: var(--ink-2); margin: 6px 0 16px; }
+.start-note { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; margin: 0 0 16px; }
+.start-note-warn { color: var(--cliff); }
+.start-actions { display: flex; flex-direction: column; gap: 10px; }
+.start-btn { width: 100%; }
+.start-confirm {
+  margin-top: 14px; padding: 12px;
+  background: rgba(200, 169, 138, 0.14); border: 1px solid rgba(200, 169, 138, 0.5);
+  border-radius: 12px;
+}
+.start-confirm-text { font-size: 13.5px; color: var(--ink); line-height: 1.6; margin: 0 0 10px; }
+.start-confirm-actions { display: flex; gap: 8px; justify-content: center; }
+.start-foot { margin: 16px 0 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+
+/* ───── 全局轻量 toast（保存反馈等） ───── */
+.toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+  z-index: 80; padding: 10px 18px;
+  background: var(--ink); color: #fff; font-size: 13.5px;
+  border-radius: 999px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  animation: toastIn 0.18s ease-out;
+}
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }

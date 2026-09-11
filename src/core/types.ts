@@ -32,6 +32,8 @@ export type StepId =
 export type FaultTag =
   | 'picking_poor'
   | 'daoqing_off'
+  | 'daoqing_short'
+  | 'daoqing_overlong'
   | 'zuoqing_hasty'
   | 'zuoqing_light'
   | 'zuoqing_stale'
@@ -187,6 +189,8 @@ export interface ProcessingResult {
   grade: Grade;
   comment: string;       // 一句自然语言评价
   faultReason?: string;  // 失败时的可归因原因
+  /** 结果页「最值得注意」：有 fault=影响最大的那条自然语言；无 fault=一句正向反馈。由 scoring 层生成，UI 只负责呈现。 */
+  highlight?: string;
   value: number;         // 可售茶钱
   roastLevel: string;    // 轻火 / 中火 / 足火（游戏过程结果标签，不代表现实品质绝对判断）
   faults: FaultTag[];

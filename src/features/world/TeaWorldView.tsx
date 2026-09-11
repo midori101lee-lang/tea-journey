@@ -11,9 +11,10 @@ import { TeaLeafSvg } from '../../components/art/Art';
  * - 不破坏武夷山内部任何玩法；武夷山进入后仍是既有的地点选择（MapView）。
  */
 export default function TeaWorldView() {
-  const { go, player } = useGame();
+  const { go, player, saveProgress, bootTo } = useGame();
   const [page, setPage] = useState(0);
   const [fly, setFly] = useState<{ id: string; x: number; y: number; w: number } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const pages = teaWorldPages();
   const slice = TEA_WORLD_REGIONS.slice(page * TEA_WORLD_PER_PAGE, page * TEA_WORLD_PER_PAGE + TEA_WORLD_PER_PAGE);
@@ -37,6 +38,27 @@ export default function TeaWorldView() {
         <p className="tw-title-en">Tea World</p>
         <p className="tw-sub">中国每一座茶山，都有自己的故事。</p>
         <p className="tw-tagline">一场可以玩的中国茶山游历 · Explore China, one tea mountain at a time.</p>
+
+        {/* 右上角轻量菜单：保存进度 / 重新开始（去启动页走二次确认）。不占泡茶主操作区。 */}
+        <div className="tw-menu">
+          <button
+            type="button"
+            className="tw-menu-btn"
+            aria-label="更多"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >⋯</button>
+          {menuOpen && (
+            <div className="tw-menu-pop" role="menu">
+              <button type="button" className="tw-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); saveProgress(); }}>
+                保存进度
+              </button>
+              <button type="button" className="tw-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); bootTo('start'); }}>
+                重新开始 / 继续
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       <div className="tw-grid">

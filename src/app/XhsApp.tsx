@@ -14,7 +14,7 @@ export default function XhsApp() {
 
   useEffect(() => { setDifficulty('casual'); }, [setDifficulty]);
 
-  if (scene === 'intro' || scene === 'teaworld' || scene === 'map' || scene === 'teahouse') {
+  if (scene === 'start' || scene === 'intro' || scene === 'teaworld' || scene === 'map' || scene === 'teahouse') {
     return (
       <div className="xhs-home">
         <div className="xhs-title">🍃 今天，来做一杯<br />属于自己的茶</div>

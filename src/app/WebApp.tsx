@@ -17,6 +17,7 @@ import ComicView from '../features/journal/ComicView';
 import SouvenirView from '../features/journal/SouvenirView';
 import MarketView from '../features/market/MarketView';
 import EncounterLayer from '../features/encounter/EncounterLayer';
+import StartScreen from '../features/world/StartScreen';
 import { NpcWeatherAside } from '../components/Weather';
 
 /** Web 版：武夷山第一日完整游历（茶馆→茶园→制茶→结果→泡茶→母树→线索→手账） */
@@ -34,6 +35,14 @@ export default function WebApp() {
   }, [scene]);
 
   const reveal = (k: string) => setRevealed((r) => ({ ...r, [k]: true }));
+
+  if (scene === 'start') {
+    return (
+      <div className="scene">
+        <StartScreen />
+      </div>
+    );
+  }
 
   if (scene === 'intro') {
     return (

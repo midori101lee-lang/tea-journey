@@ -12,7 +12,7 @@
 
 export type TeaWareRarity = 'common' | 'intermediate' | 'advanced' | 'rare';
 /** 茶具形态：决定是否能作为泡茶容器（盖碗/壶可泡；杯/罐/套具仅收藏）。 */
-export type TeaWareKind = 'gaiwan' | 'pot' | 'cup' | 'caddy' | 'set';
+export type TeaWareKind = 'gaiwan' | 'pot' | 'cup' | 'caddy' | 'set' | 'tray';
 
 export interface TeaWare {
   id: string;
@@ -46,8 +46,8 @@ export const MARKET_TEA_WARES: TeaWare[] = [
     description: '简单的一只杯子，喝茶从这里开始。', asset: 'assets/teaware/白瓷品茗杯.webp' },
   { id: 'white-gaiwan', name: '白瓷盖碗', price: 18, rarity: 'common', type: 'gaiwan', usableForBrew: true,
     description: '一只白瓷盖碗，够你慢慢把茶喝明白。', asset: 'assets/teaware/白瓷盖碗.webp' },
-  { id: 'bamboo-teaware', name: '竹木茶具', price: 35, rarity: 'common', type: 'set', usableForBrew: false,
-    description: '轻便朴素，带一点山里的气息。', asset: 'assets/teaware/竹木茶具.webp' },
+  { id: 'bamboo-teaware', name: '竹木茶盘', price: 35, rarity: 'common', type: 'tray', usableForBrew: false,
+    description: '朴素的一方茶盘，泡茶时把盖碗、公道杯都摆在上面。', asset: 'assets/teaware/竹木茶盘.webp' },
   { id: 'blue-white-tea-caddy', name: '青花瓷茶叶罐', price: 45, rarity: 'common', type: 'caddy', usableForBrew: false,
     description: '装一点自己喜欢的茶，也很好看。', asset: 'assets/teaware/青花瓷茶叶罐.webp' },
   { id: 'celadon-gaiwan', name: '青瓷盖碗', price: 55, rarity: 'intermediate', type: 'gaiwan', usableForBrew: true,
@@ -66,3 +66,8 @@ export const MARKET_TEA_WARES: TeaWare[] = [
 
 export const getTeaWare = (id: string): TeaWare | undefined =>
   MARKET_TEA_WARES.find((w) => w.id === id);
+
+/** 从玩家已拥有的茶具里，取第一个属于某形态（如茶盘/茶叶罐）的茶具。用于泡茶场景按组合动态显示底座 / 装饰。 */
+export function ownedWareOfType(owned: string[], type: TeaWareKind): TeaWare | undefined {
+  return MARKET_TEA_WARES.find((w) => owned.includes(w.id) && w.type === type);
+}

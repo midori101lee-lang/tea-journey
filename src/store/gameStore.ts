@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Player, ProcessingResult, Difficulty, BrewOutcome, Grade, TeaStack } from '../core/types';
 import { regionProficiency } from '../core/types';
-import { loadSave, persist } from '../core/storage/storage';
+import { loadSave, persist, defaultPlayer, archiveCurrentSave, wipeActiveSave } from '../core/storage/storage';
 import { MARKET_REQUIRED_TEAS } from '../core/data/regions';
 import { getTea } from '../core/data/teas';
 import { getTeaWare } from '../core/data/teaWares';
@@ -37,6 +37,7 @@ function consumeOne(inventory: TeaStack[], stackId: string): TeaStack[] {
 
 /** 第一日场景状态机（Web 版完整游历；XHS 版走线性精简流，复用同一 store） */
 export type Scene =
+  | 'start'        // 启动页（boot gate）：继续旅程 / 新的茶旅
   | 'intro'        // 茶馆开场
   | 'teaworld'     // 茶世界：茶区旅行入口（四宫格 + 茶叶旅行动画）
   | 'map'          // 武夷山地点选择
@@ -109,6 +110,13 @@ interface GameStore {
   /** 回茶馆歇一晚后弹出的「新的一天」轻量提示（瞬时 UI 态，不写盘；点击继续后清空）。 */
   pendingDayIntro: { region: string; day: number } | null;
   clearDayIntro: () => void;
+  /** 轻量 toast（瞬时 UI 态，不写盘）：保存反馈等一次性提示。 */
+  toast: string | null;
+  showToast: (msg: string) => void;
+  /** 手动「保存进度」：自动保存已在每次 player 变化时由 persist() 完成，这里再落一次盘（幂等）并给玩家明确反馈。 */
+  saveProgress: () => void;
+  /** 启动态跳转：直接切场景、清空导航历史（不把 start 页压入返回栈）。 */
+  bootTo: (s: Scene) => void;
 
   go: (s: Scene, data?: SceneData) => void;
   back: () => void;
@@ -140,7 +148,7 @@ interface GameStore {
 }
 
 export const useGame = create<GameStore>((set, get) => ({
-  scene: 'teaworld',
+  scene: 'start',
   sceneData: {},
   navHistory: [],
   difficulty: 'standard',
@@ -154,6 +162,7 @@ export const useGame = create<GameStore>((set, get) => ({
   currentDialogueIds: [],
   activeEncounter: null,
   pendingDayIntro: null,
+  toast: null,
 
   // 切场景：记录「进入此场景前所在的场景」到导航历史栈（仅页面导航，不记录游戏状态变化）。
   go: (s, data = {}) => set((st) => {
@@ -188,6 +197,21 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   clearDayIntro: () => set({ pendingDayIntro: null }),
+
+  showToast: (msg) => {
+    set({ toast: msg });
+    // 1.8s 后仅当仍是同一条提示时才清除，避免后一条提示被前一条的定时器误清
+    window.setTimeout(() => { if (get().toast === msg) set({ toast: null }); }, 1800);
+  },
+
+  saveProgress: () => {
+    // 自动保存已在每次 player 变化时由 persist() 完成；此处为「手动保存」按钮：
+    // 再落一次盘（幂等）并给玩家明确反馈。不会重复扣茶 / 不影响任何业务逻辑。
+    persist(get().player);
+    get().showToast('进度已保存');
+  },
+
+  bootTo: (s) => set({ scene: s, navHistory: [] }),
 
   // 主动去山路上逛逛：每日最多 3 次（主动进入才计数；场景内偶遇不计数）。达上限不进入。
   visitMountain: () => {
@@ -401,9 +425,25 @@ export const useGame = create<GameStore>((set, get) => ({
   },
 
   reset: () => {
-    try { localStorage.removeItem('teaworld.save.v3'); } catch { /* ignore */ }
-    const p = loadSave().player;
+    // 重新开始前先保留旧存档到 archive（一次保险），再清掉生效存档。
+    archiveCurrentSave();
+    wipeActiveSave();
+    const p = defaultPlayer();
     persist(p);
-    set({ player: p, scene: 'teaworld', lastResult: null, currentTeaId: null, sceneData: {} });
+    set({
+      player: p,
+      scene: 'teaworld',
+      lastResult: null,
+      currentTeaId: null,
+      sceneData: {},
+      navHistory: [],
+      brewingStackId: null,
+      drinkNotice: null,
+      zhouBoAdvice: null,
+      currentDialogueIds: [],
+      activeEncounter: null,
+      pendingDayIntro: null,
+      lastBrew: null,
+    });
   },
 }));

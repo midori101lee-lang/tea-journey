@@ -76,7 +76,10 @@ export default function DaoqingStep({ params, difficulty, weatherRate = 1, onDon
     let score = 100 - softErr * 55 - greenErr * 60 - stale * 25;
     if (s.round < targetRounds) score -= 12; // 晒晾轮数不够
     score = Math.max(0, Math.min(100, score));
-    const faults: FaultTag[] = score < 45 ? ['daoqing_off'] : [];
+    const faults: FaultTag[] = [];
+    if (s.round < targetRounds) faults.push('daoqing_short');    // 晒晾轮数没做足
+    if (s.shadeTooLong > 6) faults.push('daoqing_overlong');     // 晾得太久，走水慢
+    if (faults.length === 0 && (softErr > 0.5 || greenErr > 0.5)) faults.push('daoqing_off');
     onDone({
       step: 'daoqing',
       score: Math.round(score),

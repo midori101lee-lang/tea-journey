@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { StepOutcome, StepId, StepParams, Difficulty, BasketQuality } from '../../core/types';
-import { STEP_META, getRecipe } from '../../core/data/teas';
+import { STEP_META, getRecipe, getStepParams } from '../../core/data/teas';
 import { computeResult } from '../../core/making/scoring';
 import { getWeatherForDay, makingRate, zuoqingWeather } from '../../core/data/weather';
 import { useGame } from '../../store/gameStore';
@@ -11,12 +11,9 @@ import ChaoRouStep from './steps/ChaoRouStep';
 import RoastingStep from './steps/RoastingStep';
 
 /** 难度只通过 params 的 casual 档覆盖实现，代码里没有 if (isXhs) */
-function resolveParams(step: StepId, difficulty: Difficulty, bq?: BasketQuality): StepParams {
-  const r = getRecipe();
-  const base = r.params[step] ?? {};
-  const merged = difficulty === 'casual' ? { ...base, ...(r.casual?.[step] ?? {}) } : base;
-  // 采茶产出的「这一篓」品质贯穿后续工序，轻量影响判断窗口；good / 尚未采茶 = 原行为
-  return { ...merged, basketQuality: bq } as StepParams;
+function resolveParams(step: StepId, teaId: string, difficulty: Difficulty, bq?: BasketQuality): StepParams {
+  // 以茶种为键的轻微手感差异（仅游戏参数），不在代码里散落 if (teaId === ...)
+  return getStepParams(teaId, step, difficulty, bq);
 }
 
 export default function MakingFlow() {
@@ -34,7 +31,7 @@ export default function MakingFlow() {
 
   const step = steps[index];
   const meta = STEP_META[step];
-  const params = resolveParams(step, difficulty, basketQuality);
+  const params = resolveParams(step, teaId, difficulty, basketQuality);
 
   function handle(o: StepOutcome) {
     const next = [...outcomes, o];
@@ -81,6 +78,7 @@ export default function MakingFlow() {
           difficulty={difficulty}
           teaId={teaId}
           proficiency={player.proficiency}
+          day={player.day}
           zuoqingScore={zuoqingScore}
           onDone={handle}
         />

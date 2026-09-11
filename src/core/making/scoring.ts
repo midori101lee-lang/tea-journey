@@ -8,7 +8,7 @@ import { getTea } from '../data/teas';
 
 const WEIGHTS: Partial<Record<StepId, number>> = {
   picking: 0.15,
-  daoqing: 0.10,
+  daoqing: 0.15,
   zuoqing: 0.30,
   'chao-rou': 0.20,
   roasting: 0.25,
@@ -17,6 +17,8 @@ const WEIGHTS: Partial<Record<StepId, number>> = {
 const FAULT_PENALTY: Record<FaultTag, number> = {
   picking_poor: 8,
   daoqing_off: 10,
+  daoqing_short: 8,
+  daoqing_overlong: 8,
   zuoqing_hasty: 16,
   zuoqing_light: 12,
   zuoqing_stale: 10,
@@ -30,6 +32,8 @@ const FAULT_PENALTY: Record<FaultTag, number> = {
 export const FAULT_REASON: Record<FaultTag, string> = {
   picking_poor: '茶青采得杂了。',
   daoqing_off: '倒青没倒透，叶子还没醒。',
+  daoqing_short: '倒青没做足，叶片状态还没调整到位。',
+  daoqing_overlong: '晾得有些久了，叶片状态偏软。',
   zuoqing_hasty: '摇得太急，叶子受伤了。',
   zuoqing_light: '青气还在里头。',
   zuoqing_stale: '捂得有点久，闷住了。',
@@ -130,13 +134,26 @@ export function computeResult(
     ? faults.reduce((a, b) => (FAULT_PENALTY[a] >= FAULT_PENALTY[b] ? a : b))
     : null;
   const faultReason = worst ? FAULT_REASON[worst] : undefined;
-  if (grade === 'fail' && faultReason) comment = faultReason;
+
+  // 轻教学反馈（scoring 层生成，UI 只呈现）：
+  // 有 fault → 展示「影响最大」的那一条；无 fault → 给一句正向反馈（不强行制造负面）。
+  const PRAISE: Partial<Record<StepId, string>> = {
+    picking: '茶青采得匀净，底子好。',
+    daoqing: '倒青醒得透，叶片状态调得正好。',
+    zuoqing: '做青的节奏掌握得不错。',
+    'chao-rou': '炒揉拿捏得准，条索紧结。',
+    roasting: '这一炉火候走得很稳。',
+  };
+  const best = outcomes.reduce((a, b) => (b.score > a.score ? b : a));
+  const praise = PRAISE[best.step] ?? '这一锅做得稳。';
+  const highlight = faultReason ?? (grade === 'fail' ? '这一锅没达到预期，下一锅再来。' : praise);
 
   return {
     teaId,
     grade,
     comment,
     faultReason,
+    highlight,
     value: tea.basePrice[grade],
     roastLevel,
     faults,

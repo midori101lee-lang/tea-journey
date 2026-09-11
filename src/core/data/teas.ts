@@ -1,4 +1,4 @@
-import type { Tea, ProcessingRecipe, StepMeta, StepId, Difficulty, StepParams } from '../types';
+import type { Tea, ProcessingRecipe, StepMeta, StepId, Difficulty, StepParams, BasketQuality } from '../types';
 
 // ─────────── 三款武夷岩茶（事实取自资料库 S/B 级；游戏差异全部在 gameProfile） ───────────
 
@@ -199,10 +199,37 @@ export function getRecipe(): ProcessingRecipe {
   return YANCHA_RECIPE;
 }
 
-/** 合并 standard / casual 两档参数（代码里没有 if (isXhs)） */
-export function resolveParams(step: StepId, difficulty: Difficulty): StepParams {
+/**
+ * 三茶轻微手感差异（仅游戏参数，非现实茶学事实）：用现有工序参数实现，
+ * 不显示难度数字、不新建难度系统。
+ * 肉桂=张扬（节奏稍敏感：理想区间略窄）、水仙=温润（容错略宽：理想区间略宽）、
+ * 大红袍=平衡（不覆盖，使用基础值）。焙火差异仍由 gameProfile.roastBias 承担。
+ */
+export const TEA_STEP_OVERRIDES: Record<string, Partial<Record<StepId, Partial<StepParams>>>> = {
+  rougui: {
+    daoqing: { softnessTarget: [57, 76] },
+    zuoqing: { idealShakeForce: [0.47, 0.70] },
+    'chao-rou': { idealRollForce: [0.42, 0.68] },
+  },
+  shuixian: {
+    daoqing: { softnessTarget: [52, 80] },
+    zuoqing: { idealShakeForce: [0.42, 0.75] },
+    'chao-rou': { idealRollForce: [0.38, 0.72] },
+  },
+  // dahongpao: 不覆盖，使用基础值（平衡派）
+};
+
+/** 合并 基础配方 + 茶种覆盖 + standard/casual 两档 + 采茶成色（代码里没有 if (isXhs)） */
+export function getStepParams(
+  teaId: string,
+  step: StepId,
+  difficulty: Difficulty,
+  bq?: BasketQuality,
+): StepParams {
   const r = YANCHA_RECIPE;
   const base = r.params[step] ?? {};
-  if (difficulty === 'casual') return { ...base, ...(r.casual?.[step] ?? {}) } as StepParams;
-  return base as StepParams;
+  const teaOv = TEA_STEP_OVERRIDES[teaId]?.[step] ?? {};
+  let merged: StepParams = { ...base, ...teaOv } as StepParams;
+  if (difficulty === 'casual') merged = { ...merged, ...(r.casual?.[step] ?? {}) };
+  return { ...merged, basketQuality: bq } as StepParams;
 }
