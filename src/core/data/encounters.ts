@@ -768,4 +768,110 @@ export const ENCOUNTERS: EncounterNpc[] = [
       },
     ],
   },
+
+  // ── 牛姐：杭州茶集市的茶商大姐（剧情彩蛋：乌牛早冒充龙井）──
+  // 表面热情实在，实际精明宰客——她知道自己卖的是乌牛早，但嘴上只说「龙井」。
+  // 底层库存永远记 wuniuzao；真相由周伯在茶桌辨茶时揭晓（dialogues.zhoubo_niujie_tea）。
+  // 不是反派：话术热络、「为顾客着想」，坑完还觉得自己特别会做生意。
+  //
+  // 稀有度对齐（用户 2026-09-12 明确：普通NPC > 牛姐≈王霸茶 > 神秘茶人，数值沿用现有配置推导）：
+  //   集市 NPC 权重和（含牛姐）= 292。牛姐权重 20 → 每次逛集市 ≈ 0.5 × 20/292 ≈ 3.4%；
+  //   王霸茶 ≈ 0.5 × 60/292(老贾被抽中) × 45/135(事件权重) ≈ 3.4%——两者几乎完全相等，天然同档。
+  //   神秘茶人保持 market:2（≈0.34%）不动 → 牛姐比普通 NPC 少见、比神秘茶人常见一个数量级。
+  //   一次偶遇只产生一个 NPC/事件（rollEncounter 结构性保证，互不覆盖）。
+  {
+    id: 'niujie',
+    name: '牛姐',
+    role: '茶集市的茶商大姐',
+    regions: ['hangzhou'], // 只在杭州茶集市出现
+    scenes: { market: 20 },
+    // 当日冷却（同王霸茶）：同日不刷两次、隔天可再遇；冷却 flag 由 EncounterLayer 在 roll 时置位
+    //（覆盖「滚到牛姐但中途离开未对话」的情形）。首次完整剧情/后续轻量彩蛋由三个事件的 requires 分态。
+    requires: (p) => !p.flags['niujie_seen_' + p.day],
+    events: [
+      {
+        // 第一次（未购买、未揭穿）：热情推销「龙井」——两个购买分支 + 一个不买。
+        // 购买瞬间不揭底：toast 沿用她的话术；底层 giveTea 记 wuniuzao。
+        id: 'niujie_sell',
+        scenes: ['market'],
+        weight: 40,
+        requires: (p) => !p.flags['bought_niujie_wuniuzao'] && !p.flags['niujie_tea_revealed'],
+        lines: [
+          { speaker: '牛姐', text: '姑娘，来看看茶呀？' },
+          { speaker: '牛姐', text: '龙井呀！今年的新茶，嫩着呢。' },
+          { speaker: '', text: '（她利索地摊开一包茶样——叶子扁扁的，绿得发亮。）' },
+          { speaker: '牛姐', text: '你看这扁扁的叶子，多漂亮。杭州的龙井，错不了。' },
+          { speaker: '牛姐', text: '你要是喜欢，我给你算个批发价。别人我可不这个价。' },
+          { speaker: '牛姐', text: '你看着就像懂茶的，我也不跟你绕弯子。' },
+        ],
+        choices: [
+          {
+            label: '买一份「龙井」· 30文',
+            outcome: {
+              addCoins: -30,
+              giveTea: { teaId: 'wuniuzao', grade: 'good', count: 1, unitValue: 30 },
+              setsFlags: { bought_niujie_wuniuzao: 1 },
+              toast: '「好嘞，一份龙井，给你包好了。」',
+            },
+          },
+          {
+            // 套装：底层给 乌牛早×1 + 九曲红梅×1，绝无「龙井」库存。
+            label: '批发套装 · 52文（再搭一份九曲红梅）',
+            outcome: {
+              addCoins: -52,
+              giveTeas: [
+                { teaId: 'wuniuzao', grade: 'good', count: 1, unitValue: 30 },
+                { teaId: 'jiuquhongmei', grade: 'good', count: 1, unitValue: 22 },
+              ],
+              setsFlags: { bought_niujie_wuniuzao: 1 },
+              toast: '「单买龙井多没意思——两样一起拿，套装价，都给你包好了。」',
+            },
+          },
+          {
+            label: '再看看别的',
+            outcome: { toast: '（她笑眯眯地把茶样收好：「随时回来呀，姐给你留着。」）' },
+          },
+        ],
+      },
+      {
+        // 买过但还没被周伯揭穿：一句催你回去泡茶的闲话，不剧透。
+        id: 'niujie_wait',
+        scenes: ['market'],
+        weight: 30,
+        requires: (p) => !!p.flags['bought_niujie_wuniuzao'] && !p.flags['niujie_tea_revealed'],
+        lines: [
+          { speaker: '牛姐', text: '回去泡了没呀？好茶不怕放，就怕你不喝。' },
+          { speaker: '牛姐', text: '喝着怎么样，下回来跟姐说说。' },
+        ],
+        outcome: { toast: '（她招呼别的客人去了，笑得一如既往地热络。）' },
+      },
+      {
+        // 揭穿之后：轻量呼应彩蛋，不追责、不退款、不惩罚。
+        id: 'niujie_again',
+        scenes: ['market'],
+        weight: 40,
+        requires: (p) => !!p.flags['niujie_tea_revealed'],
+        lines: [
+          { speaker: '牛姐', text: '姑娘，又来看看龙井？' },
+        ],
+        choices: [
+          {
+            label: '「你上次卖我的，好像不是龙井吧？」',
+            followup: {
+              lines: [
+                { speaker: '', text: '（牛姐愣了一下，随即笑得更热络了。）' },
+                { speaker: '牛姐', text: '哎呀……姑娘现在懂茶啦？' },
+                { speaker: '牛姐', text: '做生意嘛，总得给人留点学习空间。' },
+              ],
+              outcome: { toast: '（她冲你眨眨眼，转身又招呼别人去了。）' },
+            },
+          },
+          {
+            label: '笑笑，随便看看',
+            outcome: { toast: '（她也不恼，继续吆喝她的「新茶」。）' },
+          },
+        ],
+      },
+    ],
+  },
 ];

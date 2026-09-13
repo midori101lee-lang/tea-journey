@@ -44,8 +44,17 @@ export function rollEncounter(scene: EncounterScene, player: Player): RolledEnco
   // 概率闸门：本场景这一次不出现偶遇
   if (Math.random() > SCENE_ENCOUNTER_CHANCE[scene]) return null;
 
-  // 按「当前场景」筛出可能在此出现的 NPC，按其场景倾向权重抽一个
-  const npc = pickWeighted(ENCOUNTERS, (n) => n.scenes[scene] ?? 0);
+  // 按「当前场景」筛出可能在此出现的 NPC：茶区限定（regions）+ NPC 级守卫（requires，如牛姐的当日冷却），
+  // 再按其场景倾向权重抽一个。
+  const region = player.currentRegion ?? 'wuyishan';
+  const npc = pickWeighted(
+    ENCOUNTERS.filter(
+      (n) =>
+        (!n.regions || n.regions.includes(region)) &&
+        (!n.requires || n.requires(player)),
+    ),
+    (n) => n.scenes[scene] ?? 0,
+  );
   if (!npc) return null;
 
   // 在该 NPC 的「同场景事件池」里加权抽一个事件（requires 守卫不满足则排除，如一次性剧情已触发过）

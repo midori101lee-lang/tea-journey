@@ -20,14 +20,36 @@ import MarketView from '../features/market/MarketView';
 import EncounterLayer from '../features/encounter/EncounterLayer';
 import { ENCOUNTER_SCENES } from '../features/encounter/encounterEngine';
 import { isWuyishanExplored } from '../core/data/regions';
+import { getTea } from '../core/data/teas';
+import { GRADE_LABEL } from '../core/types';
 import StartScreen from '../features/world/StartScreen';
+import TeaSeatView from '../features/teaseat/TeaSeatView';
+import StrollView from '../features/world/StrollView';
+import ZhouBoTableDialog from '../features/teatable/ZhouBoTableDialog';
+import { canEnterTeaSeat } from '../core/data/teaseat';
+import { HANGZHOU_STROLL_EVENTS } from '../core/data/strolls';
 import { NpcWeatherAside } from '../components/Weather';
 import { CoupletScroll } from '../components/CoupletScroll';
+import { IS_XHS } from '../core/platform';
+import ShareSheet from '../components/ShareSheet';
+import type { SharePayload } from '../components/ShareSheet';
 
 /** Web 版：武夷山第一日完整游历（茶馆→茶园→制茶→结果→泡茶→母树→线索→手账） */
 export default function WebApp() {
   const { scene, activeEncounter, go, player, startMaking, finishBrewing, setFlag, lastResult, difficulty, drinkNotice, zhouBoAdvice, clearEncounter, addSouvenir, showToast } = useGame();
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  // 小红书分享卡（XHS 增强）：制茶/泡茶/茶席三类节点共用，分享为可选动作不阻断主线。
+  const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
+  // 泡茶分享内容：复用刚泡完那包茶的评价（lastResult + 周伯点评），不新建评价系统。
+  const brewSharePayload = (): SharePayload | null => {
+    if (!lastResult) return null;
+    const tea = getTea(lastResult.teaId);
+    const lines = [`${tea.fullName} · ${GRADE_LABEL[lastResult.grade]}`];
+    if (zhouBoAdvice?.comment) lines.push(`周伯：${zhouBoAdvice.comment}`);
+    if (zhouBoAdvice?.suggestion) lines.push(zhouBoAdvice.suggestion);
+    if (lines.length === 1) lines.push('这一泡，慢慢喝。');
+    return { kind: 'brewing', title: '这一泡，周伯说…', lines };
+  };
   // 茶桌：用茶篓里已有的茶泡一壶（库存 → 泡茶入口）
   const [brewPickerOpen, setBrewPickerOpen] = useState(false);
   // 玲姨的茶联礼物：卷起 → 打开 →（动画结束后）可收下；点联面可收回再展开。
@@ -173,7 +195,8 @@ export default function WebApp() {
       <div className="scene">
         <BackButton />
         {!activeEncounter && revealed['zhoubo'] && <NpcWeatherAside npcId="zhoubo" player={player} />}
-        <NpcDialog key="teatable-zhoubo" scene="teatable" npcId="zhoubo" onDone={() => { setFlag('tea_made', 1); reveal('zhoubo'); }} />
+        {/* 周伯茶桌对话：特殊对白（首次/条件）+ 按地区×当前茶叶×话题动态闲聊（不再读死台词） */}
+        <ZhouBoTableDialog scene="teatable" onDone={() => { setFlag('tea_made', 1); reveal('zhoubo'); }} />
         {revealed['zhoubo'] && advice && (
           <div className="scene-foot">
             <p className="hint">周伯：「{advice.comment}」</p>
@@ -196,7 +219,16 @@ export default function WebApp() {
             <button className="btn" onClick={() => setBrewPickerOpen(true)}>用茶篓里的茶泡一壶</button>
           )}
           {brewPickerOpen && <TeaStackPicker onClose={() => setBrewPickerOpen(false)} />}
+          {/* 武夷山·我的茶席入口：老陈寒暄剧情解锁后出现（与杭州茶席同一套玩法）。 */}
+          {!brewPickerOpen && canEnterTeaSeat(player, 'wuyishan') && (
+            <button className="btn" onClick={() => go('wuyi-teaseat')}>🪑 去我的茶席坐坐</button>
+          )}
+          {/* 小红书分享入口（仅 XHS）：分享泡茶结果，可选、不阻断主线。 */}
+          {IS_XHS && brewSharePayload() && (
+            <button className="btn" onClick={() => setSharePayload(brewSharePayload())}>分享泡茶结果</button>
+          )}
         </div>
+        <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />
       </div>
     );
   }
@@ -357,7 +389,7 @@ export default function WebApp() {
     return (
       <div className="scene">
         <BackButton />
-        <NpcDialog key="hz-teatable-zhoubo" scene="hz-teatable" npcId="zhoubo" onDone={() => reveal('zhoubo')} />
+        <ZhouBoTableDialog scene="hz-teatable" onDone={() => reveal('zhoubo')} />
         {revealed['zhoubo'] && advice && (
           <div className="scene-foot">
             <p className="hint">周伯：「{advice.comment}」</p>
@@ -380,7 +412,16 @@ export default function WebApp() {
             <button className="btn" onClick={() => setBrewPickerOpen(true)}>用茶篓里的茶泡一壶</button>
           )}
           {brewPickerOpen && <TeaStackPicker onClose={() => setBrewPickerOpen(false)} />}
+          {/* 我的茶席入口：有了一件自己的茶具（设计路径=玲姨赠的杭州玻璃杯）才开放。 */}
+          {!brewPickerOpen && canEnterTeaSeat(player, 'hangzhou') && (
+            <button className="btn" onClick={() => go('hz-teaseat')}>🪑 去我的茶席坐坐</button>
+          )}
+          {/* 小红书分享入口（仅 XHS）：分享泡茶结果，可选、不阻断主线。 */}
+          {IS_XHS && brewSharePayload() && (
+            <button className="btn" onClick={() => setSharePayload(brewSharePayload())}>分享泡茶结果</button>
+          )}
         </div>
+        <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />
       </div>
     );
   }
@@ -405,6 +446,24 @@ export default function WebApp() {
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (scene === 'hz-teaseat') return <div className="scene"><TeaSeatView regionId="hangzhou" /></div>;
+
+  // 武夷山·我的茶席：与杭州茶席同一套组件/状态机，仅地区配置（背景/NPC池/对白/门禁）不同。
+  if (scene === 'wuyi-teaseat') return <div className="scene"><TeaSeatView regionId="wuyishan" /></div>;
+
+  // 梅家坞走走：杭州的「区域探索」（对标武夷山山路散步——每日 3 次、事件池独立、与茶席职责分开）。
+  if (scene === 'hz-stroll') {
+    return (
+      <div className="scene">
+        <StrollView
+          events={HANGZHOU_STROLL_EVENTS}
+          heading="梅家坞"
+          intro="你顺着村道慢慢走。茶垄一层一层绿到山脚，不知道今天会遇见什么。"
+        />
       </div>
     );
   }

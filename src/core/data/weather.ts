@@ -8,26 +8,36 @@
 //   - region 参数预留未来扩展（杭州 / 福州 / 潮州），V0.1 仅武夷山。
 import type { Player } from '../types';
 
-export type WeatherId = 'sunny' | 'cloudy' | 'mist' | 'rain';
+/**
+ * 天气 id 池：
+ *   - 武夷山（既有，保持不变）：sunny / cloudy / mist / rain
+ *   - 杭州（新增，江南春茶 / 西湖龙井茶园氛围）：spring_sunny / spring_mist / overcast / light_rain / after_rain
+ * 天气是「茶区 / 章节环境」的一部分——不同地区用不同的天气类型 + 描述 + 视觉氛围，
+ * 不再共用一套固定文案（此前杭州会误读到武夷山描述，如「丹霞岩壁」）。
+ */
+export type WeatherId =
+  | 'sunny' | 'cloudy' | 'mist' | 'rain'
+  | 'spring_sunny' | 'spring_mist' | 'overcast' | 'light_rain' | 'after_rain';
 
 export interface WeatherConfig {
   id: WeatherId;
   icon: string;
   name: string;
-  /** 一句话世界描述（武夷山首页天气卡 / 氛围用）。 */
+  /** 一句话世界描述（首页天气卡 / 氛围用），按茶区各自撰写，不出现别处地域词。 */
   shortDescription: string;
   /**
-   * 制茶过程节奏倍率（仅影响「状态变化速度」，不显示数值、不直接决定品质）：
-   *   晴 略快 / 多云 基准 / 雾 略慢 / 雨 略慢。
+   * 制茶过程节奏倍率（仅影响「状态变化速度」，不显示数值、不直接决定品质）。
+   * 杭州没有做青工序，这里只给一个基准值供复用，不影响绿茶制茶。
    */
   rate: number;
-  /** 做青步骤兼容映射（force 偏移理想区间、decay 影响青气消退速率）。 */
+  /** 做青步骤兼容映射（force 偏移理想区间、decay 影响青气消退速率）。杭州用不到，给中性值。 */
   zuoqing: { force: number; decay: number; label: string };
   /** CSS 修饰类后缀（WeatherOverlay 用），不引入图片 / 视频。 */
   visual: string;
 }
 
-export const WEATHER_CONFIG: Record<WeatherId, WeatherConfig> = {
+// ─────────── 武夷山天气池（V0.1 既有，保持不变） ───────────
+const WUYISHAN_WEATHER: Record<'sunny' | 'cloudy' | 'mist' | 'rain', WeatherConfig> = {
   sunny: {
     id: 'sunny',
     icon: '☀️',
@@ -66,7 +76,68 @@ export const WEATHER_CONFIG: Record<WeatherId, WeatherConfig> = {
   },
 };
 
-const WEATHER_IDS: WeatherId[] = ['sunny', 'cloudy', 'mist', 'rain'];
+// ─────────── 杭州天气池（新增：江南春茶 / 西湖龙井茶园氛围） ───────────
+// 关键词统一围绕：江南 / 春茶 / 湿润 / 薄雾 / 细雨 / 嫩绿 / 山间水汽 / 清雅。
+// 不出现丹霞 / 岩壁 / 岩茶 / 山场岩韵等武夷山地域描述。
+const HANGZHOU_WEATHER: Record<'spring_sunny' | 'spring_mist' | 'overcast' | 'light_rain' | 'after_rain', WeatherConfig> = {
+  spring_sunny: {
+    id: 'spring_sunny',
+    icon: '🌞',
+    name: '春日晴',
+    shortDescription: '春光落在茶垄间，嫩绿的茶芽被照得亮亮的，远处山色也清了起来。',
+    rate: 1.1,
+    zuoqing: { force: 0.0, decay: 1.0, label: '' },
+    visual: 'weather-spring_sunny',
+  },
+  spring_mist: {
+    id: 'spring_mist',
+    icon: '🌫️',
+    name: '春日薄雾',
+    shortDescription: '山间还留着一层薄雾，茶园若隐若现，空气里带着湿润的春意。',
+    rate: 0.95,
+    zuoqing: { force: 0.0, decay: 1.0, label: '' },
+    visual: 'weather-spring_mist',
+  },
+  overcast: {
+    id: 'overcast',
+    icon: '☁️',
+    name: '阴天',
+    shortDescription: '云层压得低低的，茶园的嫩绿显得格外安静。',
+    rate: 1.0,
+    zuoqing: { force: 0.0, decay: 1.0, label: '' },
+    visual: 'weather-overcast',
+  },
+  light_rain: {
+    id: 'light_rain',
+    icon: '🌧️',
+    name: '细雨',
+    shortDescription: '细雨落在茶树上，茶园湿润清凉，远处的山色也朦朦胧胧。',
+    rate: 0.9,
+    zuoqing: { force: 0.0, decay: 1.0, label: '' },
+    visual: 'weather-light_rain',
+  },
+  after_rain: {
+    id: 'after_rain',
+    icon: '🌦️',
+    name: '雨后初晴',
+    shortDescription: '雨刚停，茶园里的水汽还没散尽，叶尖挂着细小的水珠。',
+    rate: 1.05,
+    zuoqing: { force: 0.0, decay: 1.0, label: '' },
+    visual: 'weather-after_rain',
+  },
+};
+
+/** 所有天气配置（武夷山 + 杭州），按 id 取用。 */
+export const WEATHER_CONFIG: Record<WeatherId, WeatherConfig> = {
+  ...WUYISHAN_WEATHER,
+  ...HANGZHOU_WEATHER,
+};
+
+/** 每茶区各自的天气随机池：不同地区走不同天气类型 + 描述 + 氛围。 */
+const REGION_WEATHER_IDS: Record<string, WeatherId[]> = {
+  wuyishan: ['sunny', 'cloudy', 'mist', 'rain'],
+  hangzhou: ['spring_sunny', 'spring_mist', 'overcast', 'light_rain', 'after_rain'],
+};
 
 /** 确定性伪随机：同一 (day, region) 永远得到同一天气，刷新 / 重进场景都不变。 */
 function hashDay(day: number, region: string): number {
@@ -79,10 +150,11 @@ function hashDay(day: number, region: string): number {
 /**
  * 根据游戏日得到当天固定天气。完全本地、无外部天气 API。
  * day 复用现有 Player.day（按茶区分区记录于 regionDays，day 同步为当前茶区天数）；
- * region 预留未来多茶区，V0.1 恒为当前茶区。
+ * region 决定取哪一茶区的天气池——切换茶区后天气随之刷新，不沿用上一个茶区的状态。
  */
 export function getWeatherForDay(day: number, region = 'wuyishan'): WeatherId {
-  return WEATHER_IDS[hashDay(day, region) % WEATHER_IDS.length];
+  const pool = REGION_WEATHER_IDS[region] ?? REGION_WEATHER_IDS['wuyishan'];
+  return pool[hashDay(day, region) % pool.length];
 }
 
 /** 从 Player 直接取「当前天气」（复用 day + currentRegion，不建第二套日期系统）。 */

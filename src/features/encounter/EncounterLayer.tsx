@@ -14,6 +14,16 @@ function teaName(id: string): string {
   return TEAS.find((t) => t.id === id)?.name ?? id;
 }
 
+/**
+ * 「NPC 级当日冷却」（与王霸茶的事件级冷却同一套思路）：
+ * roll 中即置位 flag——同日不刷两次、隔天可再遇、拒绝也不永久锁死。
+ * 王霸茶是老贾池里的一个事件（wangba_seen_）；神秘茶人与牛姐是整个 NPC 当日冷却。
+ */
+const NPC_DAILY_COOLDOWN: Record<string, string> = {
+  mystery_tea_person: 'mystery_seen_',
+  niujie: 'niujie_seen_',
+};
+
 /** 抽一个选项的花费（仅买茶类选项：outcome.addCoins 为负） */
 function choiceCost(c: EncounterChoice): number {
   const n = c.outcome?.addCoins ?? 0;
@@ -44,15 +54,14 @@ export default function EncounterLayer() {
     if ((ENCOUNTER_SCENES as string[]).includes(scene)) {
       const pl = useGame.getState().player;
       const r = rollEncounter(scene as EncounterScene, pl);
-      if (r && r.npcId === 'mystery_tea_person') {
-        // 神秘茶人：低频且受「天」约束——同一天最多遇一次（轻量 flag 记忆）。
-        const key = 'mystery_seen_' + pl.day;
-        if (pl.flags[key]) clearEncounter();
-        else { setFlags({ [key]: 1 }); triggerEncounter(r); }
-      } else if (r && r.npcId === 'laojia' && r.eventId === 'laojia_wangba') {
-        // 王霸茶：与神秘茶人同思路的当日冷却——同日不刷两次、隔天可再遇、拒绝不永久锁死。
-        // 必须在 roll 时即置位，才能覆盖「滚到王霸但中途离开未选」的情形。
-        const key = 'wangba_seen_' + pl.day;
+      // 当日冷却统一处理（神秘茶人 / 牛姐=NPC 级；王霸茶=老贾池里的特定事件）：
+      // 同日不刷两次、隔天可再遇、拒绝不永久锁死；必须在 roll 时即置位，
+      // 才能覆盖「滚到但中途离开未对话/未选」的情形。flag 名与既有完全一致，不改武夷山行为。
+      let cooldownPrefix: string | null = null;
+      if (r && r.npcId === 'laojia' && r.eventId === 'laojia_wangba') cooldownPrefix = 'wangba_seen_';
+      else if (r && NPC_DAILY_COOLDOWN[r.npcId]) cooldownPrefix = NPC_DAILY_COOLDOWN[r.npcId];
+      if (r && cooldownPrefix) {
+        const key = cooldownPrefix + pl.day;
         if (pl.flags[key]) clearEncounter();
         else { setFlags({ [key]: 1 }); triggerEncounter(r); }
       } else if (r) {
@@ -156,9 +165,13 @@ function EncounterDialogue({
   function apply(o: EncounterOutcome) {
     if (o.setsFlags) setFlags(o.setsFlags);
     if (o.addCoins) addCoins(o.addCoins);
-    if (o.giveTea) {
-      addTea(o.giveTea.teaId, o.giveTea.grade, o.giveTea.roastLevel ?? '足火', o.giveTea.count ?? 1, o.giveTea.unitValue);
-      setGain({ name: teaName(o.giveTea.teaId), grade: o.giveTea.grade });
+    // 给茶：单包（giveTea）或多包（giveTeas，如牛姐的「乌牛早＋九曲红梅」套装），同一入口 addTea。
+    const teas = o.giveTeas ?? (o.giveTea ? [o.giveTea] : []);
+    if (teas.length > 0) {
+      for (const g of teas) {
+        addTea(g.teaId, g.grade, g.roastLevel ?? '足火', g.count ?? 1, g.unitValue);
+      }
+      setGain({ name: teas.map((g) => teaName(g.teaId)).join(' · '), grade: teas[0].grade });
       setLock(true);
     }
     if (o.unlockComic) unlockComic(o.unlockComic);

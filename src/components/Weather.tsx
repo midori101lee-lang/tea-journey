@@ -23,16 +23,19 @@ export function WeatherBadge({ id, showDesc = true }: { id: WeatherId; showDesc?
  * 纯 CSS 渐变 / 轻动画，pointer-events:none，不增加加载体积、不挡交互。
  */
 export function WeatherOverlay({ id }: { id: WeatherId }) {
+  // 武夷山小雨 / 杭州细雨共用雨层；武夷山山雾 / 杭州春日薄雾共用薄雾层。
+  const isRain = id === 'rain' || id === 'light_rain';
+  const isMist = id === 'mist' || id === 'spring_mist';
   return (
     <div className={`weather-overlay weather-${id}`} aria-hidden>
-      {id === 'rain' && (
+      {isRain && (
         <div className="weather-rain">
           {Array.from({ length: 18 }).map((_, i) => (
             <span key={i} style={{ left: `${(i * 5.5) % 100}%`, animationDelay: `${(i % 9) * 0.13}s` }} />
           ))}
         </div>
       )}
-      {id === 'mist' && (
+      {isMist && (
         <div className="weather-mist-layer">
           <span className="weather-mist weather-mist-1" />
           <span className="weather-mist weather-mist-2" />

@@ -9,6 +9,18 @@ import { getZhouBoAfterTeaAdvice } from '../core/data/zhouBoAdvice';
 import type { RolledEncounter } from '../features/encounter/encounterEngine';
 import type { ZhouBoAdvice } from '../core/data/zhouBoAdvice';
 
+/**
+ * 小红书分享奖励（XHS 增强，经现有 gameStore / 茶钱机制接入，不复制经济逻辑）：
+ * 每日仅首次成功分享（制茶 / 泡茶 / 茶席任意一种）发放 +20 茶钱，每日上限 20，防重复刷。
+ *
+ * 平台能力限制（详见二次调整报告 §3）：当前 XHS 以 webview 运行、无小红书 JSbridge，
+ * `navigator.share` 无法可靠回传「已成功发帖」。故本版本 SHARE_PAYOUT_ENABLED=false：
+ * 只记录当日已分享日期（shareRewardDate），暂不发茶钱、不伪造回调。
+ * 待接入 XHS 平台发帖确认能力后，将本常量置 true 即可启用 +20（无需改动其它逻辑）。
+ */
+const SHARE_PAYOUT_ENABLED = false;
+const SHARE_REWARD_AMOUNT = 20;
+
 /** 入篓/入背包的通用堆叠逻辑（制茶结果 与 偶遇赠茶 共用）。 */
 function pushStack(
   inventory: TeaStack[],
@@ -51,6 +63,7 @@ export type Scene =
   | 'result'       // 制茶结果
   | 'brew'         // 8 步泡茶
   | 'teatable'     // 周伯点评
+  | 'wuyi-teaseat' // 我的茶席（武夷山：复用杭州茶席组件，仅地区配置不同；剧情解锁）
   | 'mothertree'   // 母树（岩伯）
   | 'market'       // 茶集市（小满 · 卖茶/辨茶；各地共用）
   | 'mountain'     // 山路（主动「去山路上逛逛」；偶遇 NPC 的主场之一）
@@ -59,6 +72,8 @@ export type Scene =
   | 'hz-garden'    // 杭州茶园：阿青
   | 'hz-workshop'  // 杭州制茶坊
   | 'hz-teatable'  // 杭州茶桌（泡茶 / 品饮）
+  | 'hz-teaseat'  // 我的茶席（杭州：分层场景——背景/NPC/茶桌/茶具/玩家；轻量社交彩蛋）
+  | 'hz-stroll'    // 梅家坞走走（杭州区域探索：每日 3 次，复用山路散步机制；事件池 strolls.ts）
   | 'meijiawu'     // 梅家坞（地域探索入口 · 占位）
   | 'journal'      // 茶游记手账
   | 'comic'        // 漫画视图
@@ -134,6 +149,8 @@ interface GameStore {
   advanceDay: () => void;
   /** 主动去山路上逛逛：受「每日最多 3 次」约束；达上限则不进入。 */
   visitMountain: () => void;
+  /** 区域探索（通用）：与山路散步同一套每日 3 次机制，进入指定探索场景（如杭州 hz-stroll）。 */
+  visitExplore: (target: Scene) => void;
   setDifficulty: (d: Difficulty) => void;
   meetNpc: (id: string) => void;
   setFlag: (k: string, v: boolean | number) => void;
@@ -146,9 +163,16 @@ interface GameStore {
   finishBrewing: (o: BrewOutcome) => void;
   /** 用茶篓里已有的茶（买来的或做好的）泡一壶：合成 ProcessingResult 写入 lastResult 并进入泡茶流程，不消耗库存。 */
   startBrewFromStack: (stack: TeaStack) => void;
+  /** 茶席实饮：一次「真的喝了」扣 1 包（自饮/与 NPC 同饮各算一次）。进入/等待茶席不调本函数 → 不扣。 */
+  drinkTea: (stackId: string) => void;
   setDialogues: (ids: string[]) => void;
   sell: (stackId: string, price?: number) => void;
   addCoins: (n: number) => void;
+  /** 小红书分享奖励：用户完成一次分享发帖流程后调用（由 ShareSheet 的「记录这次分享」触发）。
+   *  每日任意一种分享首次成功即发 +20（每日上限 20），防重复刷。
+   *  type 参数仅用于未来平台回调日志，不参与判定。
+   *  返回 true 表示本次发放了茶钱（当前平台未接入发帖确认时为 false，只记录日期）。 */
+  grantShareReward: (type: 'making' | 'brewing' | 'teaseat') => boolean;
   addTea: (teaId: string, grade: Grade, roastLevel: string, count: number, unitValue: number, sourceNpc?: string, bargain?: 'deal' | 'overpriced') => void;
   /** 一次性旅途赠礼入茶篓（如「武夷山茶礼」）：source='gift'、带 giftTag，成独立一栈，不参与普通出售。 */
   addGiftTea: (teaId: string, grade: Grade, count: number, giftTag?: string) => void;
@@ -156,6 +180,8 @@ interface GameStore {
   buyTea: (teaId: string, grade: Grade, price: number, sourceNpc?: string, bargain?: 'deal' | 'overpriced') => boolean;
   /** 茶集市买茶具：原子扣茶钱 + 入茶具收藏（teaWareInventory）。已拥有 / 余额不足返回 false 且不改状态。 */
   buyTeaWare: (id: string) => boolean;
+  /** 剧情赠礼茶具：免费入茶具收藏（teaWareInventory），不扣茶钱、不进茶集市。已拥有返回 false（不重复入收藏）。 */
+  giveTeaWare: (id: string) => boolean;
   reset: () => void;
 }
 
@@ -266,6 +292,23 @@ export const useGame = create<GameStore>((set, get) => ({
     });
   },
 
+  // 区域探索（通用）：武夷山「山路散步」与杭州「梅家坞走走」共用同一套
+  // 「每日 3 次 + 回茶馆歇一晚重置 + 换茶区重置」机制（计数沿用 mountainVisitsToday，
+  // 与既有「换茶区=新的一天节奏」约定一致）。visitMountain 是武夷山实例、行为不变；
+  // 各地区的随机事件池由数据提供（strolls.ts / encounters.ts），本函数只管次数与进入。
+  visitExplore: (target) => {
+    const { player, navHistory } = get();
+    if (player.mountainVisitsToday >= 3) return;
+    const next = { ...player, mountainVisitsToday: player.mountainVisitsToday + 1 };
+    persist(next);
+    set((st) => ({
+      player: next,
+      scene: target,
+      // 已在目标场景（散步场景内「再走走」）不重复压栈，避免返回链里串起一截同场景
+      navHistory: st.scene === target ? st.navHistory : pushHist(navHistory, { scene: st.scene, data: st.sceneData }),
+    }));
+  },
+
   setDifficulty: (d) => set({ difficulty: d }),
 
   meetNpc: (id) => {
@@ -335,6 +378,20 @@ export const useGame = create<GameStore>((set, get) => ({
     // 同时同步到 player.proficiency（= 当前茶区熟练度），兼容制茶容错/结果页/NPC 熟练度对话。
     const regionId = getTea(result.teaId)?.regionId ?? 'wuyishan';
     const regionProf = Math.min(100, regionProficiency(player, regionId) + gain);
+    // 隐藏成就「铁砂掌」：成功完成一次龙井炒制（grade !== 'fail' 视为成功）即解锁。
+    // 这是多茶区功能扩展，与难度无关——standard / casual 都应解锁，故不绑 difficulty 条件。
+    // 解锁后由玲姨赠出「杭州玻璃杯」（hangzhou 茶席的进入条件之一）。不改任何难度容错判定。
+    // 幂等——已解锁不重复写入、兼容旧档。
+    // （注：P0 曾误加 `difficulty === 'standard'` 条件；该条件在 Web 下恒真、属无操作死条件，
+    //  已在二次调整中移除——不属于「为 XHS 改 Web 规则」，故保留移除结论。）
+    let hiddenAchievements = player.hiddenAchievements ?? [];
+    if (
+      result.teaId === 'longjing'
+      && result.grade !== 'fail'
+      && !hiddenAchievements.includes('iron_palm')
+    ) {
+      hiddenAchievements = [...hiddenAchievements, 'iron_palm'];
+    }
     const next: Player = {
       ...player,
       totalMade: player.totalMade + 1, // 全局累计锅数：上品/良好/普通/失败都算一锅
@@ -342,6 +399,7 @@ export const useGame = create<GameStore>((set, get) => ({
       proficiencyByRegion: { ...player.proficiencyByRegion, [regionId]: regionProf },
       inventory,
       madeTeas,
+      hiddenAchievements,
       flags: allThreeMade ? { ...player.flags, all_tea_made: 1 } : player.flags,
     };
     persist(next);
@@ -365,6 +423,11 @@ export const useGame = create<GameStore>((set, get) => ({
       const stack = st.player.inventory.find((s) => s.id === id);
       const inventory = consumeOne(st.player.inventory, id);
       const next = { ...st.player, inventory };
+      // 牛姐彩蛋：这一泡是乌牛早（它只可能来自牛姐摊上那包「龙井」）→ 落「待辨茶」标记，
+      // 杭州茶桌的周伯辨茶对话由此接手（derived flag zhoubo_niujie_ready）。已揭穿过的存档不重复触发。
+      if (stack && stack.teaId === 'wuniuzao' && !st.player.flags['niujie_tea_revealed']) {
+        next.flags = { ...next.flags, niujie_brew_pending: 1 };
+      }
       // 周伯品茶后的上下文建议：纯逻辑模块计算，不在此写业务判断。
       const advice = stack
         ? getZhouBoAfterTeaAdvice({ teaId: stack.teaId, grade: stack.grade, brewScore: o.brewScore, player: st.player })
@@ -384,6 +447,18 @@ export const useGame = create<GameStore>((set, get) => ({
       const teaTable = regionLocationScene(st.player.currentRegion || 'wuyishan', 'teatable') as Scene;
       set({ lastBrew: o, scene: teaTable, zhouBoAdvice: null });
     }
+  },
+
+  // 茶席实饮扣茶：与泡茶结算（finishBrewing）同一套 consumeOne，保证「一次喝 = 恰好扣 1 包」。
+  // 只在茶席发生实际喝茶行为时调用（自饮 / 与 NPC 同饮）；进入、布置、等待 NPC 都不调用 → 不扣。
+  // stack 已不存在（比如刚被卖掉/泡掉）时静默跳过，不报错。
+  drinkTea: (stackId) => {
+    const { player } = get();
+    if (!player.inventory.some((s) => s.id === stackId)) return;
+    const inventory = consumeOne(player.inventory, stackId);
+    const next = { ...player, inventory };
+    persist(next);
+    set({ player: next });
   },
 
   startBrewFromStack: (stack) => {
@@ -440,6 +515,27 @@ export const useGame = create<GameStore>((set, get) => ({
     set({ player: next });
   },
 
+  // 小红书分享奖励：用户在 ShareSheet 中「我已发布」后由 recordShare 触发。
+  // 关键前提：当前 XHS 以 webview 运行、无小红书 JSbridge，无法可靠确认「用户真的成功发布了一篇小红书帖子」。
+  // 因此本函数只负责「防重复 + 发钱」，成功依据完全由调用方（ShareSheet）提供：
+  //  - 调用方的「我已发布」是【用户手动确认】，**不等于**平台已确认成功发布（manual confirmation ≠ verified publish）。
+  //  - SHARE_PAYOUT_ENABLED=false 时仅记录日期、不发钱、不伪造；接入可靠平台回调后再置 true。
+  //  - 未来若平台能可靠确认发帖成功，只需把调用来源从「手动确认」换成「平台成功回调」，游戏逻辑无需改动。
+  // 每日规则：当天首次成功分享（任意一种）发 +20，之后当天其余分享不再发（每日上限 20）。
+  grantShareReward: (type) => {
+    const { player } = get();
+    const today = new Date().toISOString().slice(0, 10);
+    if (player.shareRewardDate === today) return false; // 今日已领过每日分享奖励，防重复刷
+    const next: Player = {
+      ...player,
+      shareRewardDate: today,
+      coins: SHARE_PAYOUT_ENABLED ? Math.max(0, player.coins + SHARE_REWARD_AMOUNT) : player.coins,
+    };
+    persist(next);
+    set({ player: next });
+    return SHARE_PAYOUT_ENABLED;
+  },
+
   addTea: (teaId, grade, roastLevel, count, unitValue, sourceNpc?, bargain?) => {
     const { player } = get();
     const inventory = pushStack(player.inventory, teaId, grade, roastLevel, count, unitValue, sourceNpc ? 'purchased' : undefined, sourceNpc, bargain);
@@ -483,6 +579,16 @@ export const useGame = create<GameStore>((set, get) => ({
       coins: player.coins - ware.price,
       teaWareInventory: [...player.teaWareInventory, id],
     };
+    persist(next);
+    set({ player: next });
+    return true;
+  },
+
+  giveTeaWare: (id) => {
+    const { player } = get();
+    if (!getTeaWare(id)) return false;
+    if (player.teaWareInventory.includes(id)) return false; // 已拥有：不重复入收藏
+    const next = { ...player, teaWareInventory: [...player.teaWareInventory, id] };
     persist(next);
     set({ player: next });
     return true;

@@ -45,6 +45,12 @@ export const TEA_VISUAL: Record<string, TeaVisual> = {
     liquorDeep: '#aab562',
     leafColor: '#a8ae58',
   },
+  // 杭州 · 乌牛早（牛姐彩蛋）：比龙井更翠一点的绿、汤色同样清透偏黄绿——「更像，但不一样」。
+  wuniuzao: {
+    liquorLight: '#e3edab',
+    liquorDeep: '#9cbd5e',
+    leafColor: '#84a95c',
+  },
 };
 
 export function teaVisual(teaId: string): TeaVisual {

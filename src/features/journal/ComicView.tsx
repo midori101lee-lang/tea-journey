@@ -12,7 +12,7 @@ export default function ComicView() {
     <div className="scene">
       <BackButton />
       <div className="comic-view">
-        <div className="hint">茶漫画 · {comic.kind === 'process' ? '制茶' : comic.kind === 'terroir' ? '茶山' : comic.kind === 'story' ? '旧闻' : '人物'}</div>
+        <div className="hint">茶漫画 · {comic.kind === 'process' ? '制茶' : comic.kind === 'terroir' ? '茶山' : comic.kind === 'story' ? '旧闻' : comic.kind === 'person' ? '人物' : '品饮'}</div>
         <h2 className="h-serif" style={{ marginTop: 2 }}>{comic.title}</h2>
         <div className="comic-source">来源：{comic.source}</div>
 

@@ -48,7 +48,7 @@ export const SOUVENIRS: SouvenirDef[] = [
     place: '浙江 · 杭州 · 玲姨的茶馆',
     photo: 'assets/couplets/couplet_upper.webp',  // 上联（← background picture/茶联上.PNG）
     photo2: 'assets/couplets/couplet_lower.webp', // 下联（← background picture/茶联下.PNG）
-    backText: '玲姨从茶馆柱子上揭下来送你的一副小联。',
+    backText: '听说是某位名家留下的。也可能是隔壁老王写的。',
     motto: '挂在哪里，哪里就是茶馆。',
     giverName: '玲姨',
   },

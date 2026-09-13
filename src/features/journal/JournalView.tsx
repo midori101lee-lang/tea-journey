@@ -1,5 +1,5 @@
 import { REGIONS, UPCOMING_REGIONS, regionExploration } from '../../core/data/regions';
-import { BATCH_ACHIEVEMENTS, regionProficiency, proficiencyLabel } from '../../core/types';
+import { BATCH_ACHIEVEMENTS, regionProficiency, proficiencyLabel, hiddenAchievementsOf } from '../../core/types';
 import { getTeaWare, RARITY_LABEL } from '../../core/data/teaWares';
 import { useGame } from '../../store/gameStore';
 import BackButton from '../../components/BackButton';
@@ -15,6 +15,8 @@ export default function JournalView() {
 
   const earned = BATCH_ACHIEVEMENTS.filter((a) => player.totalMade >= a.need);
   const locked = BATCH_ACHIEVEMENTS.filter((a) => player.totalMade < a.need);
+  // 隐藏成就：一次性事件触发；未解锁前不展示（保留「隐藏」性质），只对已解锁的显示。
+  const hidden = hiddenAchievementsOf(player);
   // 有熟练度记录或已踏足的茶区，才显示档位；其余显示「尚未开始」
   const startedRegions = new Set(
     REGIONS.filter((r) => regionProficiency(player, r.id) > 0 || regionExploration(player, r).visited > 0).map((r) => r.id),
@@ -68,6 +70,17 @@ export default function JournalView() {
               ))}
             </div>
           </div>
+
+          {hidden.length > 0 && (
+            <div className="journal-ach" style={{ marginTop: 8 }}>
+              <div className="ach-head">🖐️🔥 隐藏成就 {hidden.length}</div>
+              <div className="ach-list">
+                {hidden.map((a) => (
+                  <span className="ach-chip ach-got" key={a.id} title={a.desc}>{a.icon} {a.name}</span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {player.flags.bought_wangba && (
             <p className="hint" style={{ marginTop: 10 }}>

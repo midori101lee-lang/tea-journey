@@ -148,6 +148,30 @@ export const TEAS: Tea[] = [
       unlockCondition: { type: 'flag', flag: 'longjing_unlocked', note: '龙井暂时锁定，等梅家坞那条线走通。' },
     },
   },
+  {
+    id: 'wuniuzao',
+    name: '乌牛早',
+    fullName: '乌牛早（特早生绿茶）',
+    category: 'green',
+    regionId: 'hangzhou',
+    basePrice: { fail: 3, normal: 12, good: 24, fine: 38 },
+    // 乌牛早只通过牛姐剧情彩蛋获得：不进 makeableTeasForRegion（不可制茶）、不进集市摊位，
+    // 也不是「劣质茶」——它自己的茶；有问题的是把它谎称成西湖龙井来卖的行为。
+    unlockCondition: { type: 'initial' },
+    facts: [
+      { level: 'S', source: '浙江地方茶树品种资料', category: 'identity', text: '乌牛早是浙江的特早生茶树品种，发芽、采摘明显偏早；做成扁形绿茶后，外形与龙井相近，乍一看容易认错。' },
+      { level: 'B', source: '品饮经验', category: 'appearance', text: '干茶扁平挺直、芽叶较肥壮、芽锋较显，颜色翠绿光润——记成「短、肥、齐」，跟龙井的「扁、挺、秀」对着看。' },
+      { level: 'B', source: '品饮经验', category: 'taste', text: '滋味鲜爽甘醇，鲜感来得直接；香气清鲜、嫩香。它是自己的茶，不是「假龙井」。' },
+    ],
+    copies: [
+      { kind: 'player_hint', text: '短、肥、齐——芽头比龙井壮，绿得更翠一些，发芽也早。' },
+    ],
+    gameProfile: {
+      difficulty: 1,
+      roastBias: { center: 0, width: 0 },
+      unlockCondition: { type: 'initial' },
+    },
+  },
 ];
 
 export function getTea(id: string): Tea {

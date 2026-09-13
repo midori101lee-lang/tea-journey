@@ -69,6 +69,9 @@ export const SCENES: Record<string, SceneEntry> = {
   'hz-teatable': { Component: HangzhouTeatableScene, bg: 'assets/scenes/hangzhou_teatable.webp', figure: { left: 48, bottom: 16, width: 42 } },
   // 梅家坞（正式背景 + 吟诗老人透明立绘；地域探索入口）
   meijiawu: { Component: MeijiawuScene, bg: 'assets/scenes/meijiawu.webp', figure: { left: 22, bottom: 16, width: 36 } },
+  // 梅家坞走走（杭州每日区域探索；← background picture/杭州散步.PNG。玩家在茶村里闲逛，
+  // 随机事件由 strolls.ts 提供；偶遇 NPC 由 StrollView 传 npcId 走 figure 槽位，不并入背景。）
+  'hz-stroll': { Component: MeijiawuScene, bg: 'assets/scenes/hangzhou_stroll.webp', figure: { left: 56, bottom: 16, width: 38 } },
 };
 
 export type SceneKey = keyof typeof SCENES;

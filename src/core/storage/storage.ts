@@ -76,6 +76,9 @@ function migrate(data: SaveData): SaveData {
   // 回填较新版本才新增的字段（如 madeTeas），避免旧档缺字段导致读取/运算报错
   d.player = { ...defaultPlayer(), ...d.player };
 
+  // 旧档的「逐类 shareRewards」已简化为单日 shareRewardDate；丢弃旧结构，避免脏字段残留
+  delete (d.player as unknown as Record<string, unknown>).shareRewards;
+
   // 多茶区旅行天数（V0.4 新增）：旧档只有全局 day，迁移时把它的天数作为武夷山天数，
   // 并把当前所在茶区归为武夷山，保证老玩家「第几天」不丢、不回退到 1。
   d.player.currentRegion = d.player.currentRegion || 'wuyishan';

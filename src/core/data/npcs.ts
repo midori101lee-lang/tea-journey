@@ -281,6 +281,23 @@ export const NPCS: Npc[] = [
     sceneArt: 'hz-workshop',
     portrait: 'assets/npcs/hangzhou/gu_shu.webp',
   },
+
+  // ───── 杭州 · 茶集市：牛姐（偶遇彩蛋：乌牛早冒充龙井）─────
+  // 表面热情和善的「实在大姐」，实际精明会算——把乌牛早说成龙井卖。
+  // 不是反派：笑眯眯地坑你，坑完还觉得自己特别会做生意。只通过偶遇出现，不进摊位系统。
+  {
+    id: 'niujie',
+    name: '牛姐',
+    role: '茶集市的茶商大姐',
+    coreWords: '热络 / 批发价 / 熟人价 / 会做生意',
+    knowledgeScope: [],
+    avatarBg: '#d8b6a0',
+    firstMeet: 'market',
+    recurring: false,
+    sceneArt: 'market',
+    portrait: 'assets/npcs/encounter/niujie.webp',
+    stallScale: 0.72,
+  },
 ];
 
 export function getNpc(id: string): Npc {

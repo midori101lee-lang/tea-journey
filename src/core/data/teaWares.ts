@@ -65,11 +65,30 @@ export const MARKET_TEA_WARES: TeaWare[] = [
 ];
 
 export const getTeaWare = (id: string): TeaWare | undefined =>
-  MARKET_TEA_WARES.find((w) => w.id === id);
+  [...MARKET_TEA_WARES, ...GIFT_TEA_WARES].find((w) => w.id === id);
+
+/**
+ * 剧情赠礼茶具（非茶集市出售；进入玩家茶具收藏，为未来「我的茶席」预留）。
+ * 不标价、不可购买、不在茶集市出现；买一次长期拥有，与茶叶背包分开。
+ */
+export const GIFT_TEA_WARES: TeaWare[] = [
+  {
+    id: 'hz-glass-cup',
+    name: '杭州玻璃杯',
+    price: 0,
+    rarity: 'rare',
+    type: 'cup',
+    // 本阶段为「收藏型茶具」：进入茶具收藏，为未来「我的茶席」预留（茶席可直接读取茶具收藏摆上茶席）。
+    // 实际的「用玻璃杯泡龙井」体验在茶席阶段启用，故这里不进入现有泡茶容器选择（不影响已有茶具系统）。
+    usableForBrew: false,
+    description: '玲姨送的玻璃杯。泡上一杯龙井，看着茶叶在水里慢慢舒展开，也算是把杭州的春天装进杯子里了。',
+    asset: 'assets/teaware/杭州玻璃杯.webp',
+  },
+];
 
 /** 从玩家已拥有的茶具里，取第一个属于某形态（如茶盘/茶叶罐）的茶具。用于泡茶场景按组合动态显示底座 / 装饰。 */
 export function ownedWareOfType(owned: string[], type: TeaWareKind): TeaWare | undefined {
-  return MARKET_TEA_WARES.find((w) => owned.includes(w.id) && w.type === type);
+  return [...MARKET_TEA_WARES, ...GIFT_TEA_WARES].find((w) => owned.includes(w.id) && w.type === type);
 }
 
 /** 「还没买过任何茶具」时的默认泡茶容器：茶桌上常备的素盖碗（内联 SVG 绘制，非商品、不进收藏/出售）。

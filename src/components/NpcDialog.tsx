@@ -3,6 +3,7 @@ import type { Dialogue, DialogueLine } from '../core/types';
 import { DIALOGUES, DERIVED_DIALOGUE_FLAGS } from '../core/data/dialogues';
 import { getNpc } from '../core/data/npcs';
 import { getTea } from '../core/data/teas';
+import { getTeaWare } from '../core/data/teaWares';
 import { useGame } from '../store/gameStore';
 import { NpcStage } from './NpcStage';
 
@@ -50,7 +51,7 @@ function buildSteps(scene: string, npcId: string | undefined, player: ReturnType
  * 播到最后一步后隐藏「继续」按钮，避免「点了没反应」的死按钮错觉（父级已展示后续 UI）。
  */
 export default function NpcDialog({ scene, npcId, onDone }: Props) {
-  const { setFlags, unlockComic, addClue, addSouvenir, meetNpc, addGiftTea, showToast } = useGame();
+  const { setFlags, unlockComic, addClue, addSouvenir, meetNpc, addGiftTea, giveTeaWare, showToast } = useGame();
   // 挂载时按当前 player 状态构建一次（WebApp 已为每个 (scene,npcId) 加 key 强制重挂载）。
   const [steps] = useState<Step[]>(() => buildSteps(scene, npcId, useGame.getState().player));
   const [i, setI] = useState(0);
@@ -82,6 +83,13 @@ export default function NpcDialog({ scene, npcId, onDone }: Props) {
     if (d.unlocksComic) unlockComic(d.unlocksComic);
     if (d.unlocksClue) addClue(d.unlocksClue);
     if (d.givesSouvenir) addSouvenir(d.givesSouvenir); // 游历纪念物进「游记收藏」
+    if (d.givesTeaWare) {
+      // 剧情茶具：免费入茶具收藏（teaWareInventory），与茶叶背包分开；不进茶集市、不可购买。
+      if (giveTeaWare(d.givesTeaWare)) {
+        const w = getTeaWare(d.givesTeaWare);
+        showToast(`🥃 ${w?.name ?? '茶具'} 已收入茶具收藏`);
+      }
+    }
     if (d.givesTea?.length) {
       // 旅途告别礼（如武夷山茶礼）：进现有茶篓，source='gift'，不参与普通出售。
       for (const g of d.givesTea) addGiftTea(g.teaId, g.grade, g.count, g.giftTag);

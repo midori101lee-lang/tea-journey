@@ -4,6 +4,7 @@ node_modules/
 
 # ── 构建产物（Cloudflare Pages 会在云端重新构建） ──────
 dist/
+dist-xhs/
 dist-ssr/
 build/
 *.local

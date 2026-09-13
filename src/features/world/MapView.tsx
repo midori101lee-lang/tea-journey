@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { getRegion, isMarketUnlocked } from '../../core/data/regions';
 import { useGame } from '../../store/gameStore';
 import type { Scene } from '../../store/gameStore';
@@ -28,7 +29,8 @@ function lockedHint(loc: LocationDef): string | null {
 }
 
 export default function MapView() {
-  const { go, player, advanceDay, visitMountain } = useGame();
+  const { go, player, advanceDay, visitMountain, visitExplore, reset } = useGame();
+  const [confirmReset, setConfirmReset] = useState(false);
   const regionId = player.currentRegion || 'wuyishan';
   const region = getRegion(regionId);
   const isWuyi = regionId === 'wuyishan';
@@ -71,6 +73,16 @@ export default function MapView() {
           title={mountainFull ? '今天山路已经逛够了，回茶馆歇一晚再来。' : ''}
         >🚶 去山路上逛逛{mountainFull ? '（今天逛够啦）' : `（今天还能去 ${mountainLeft} 回）`}</button>
       )}
+      {/* 杭州 · 区域探索：梅家坞走走（与武夷山山路散步同一套每日 3 次机制，事件池见 strolls.ts） */}
+      {!isWuyi && (
+        <button
+          className="btn btn-primary"
+          style={{ marginTop: 14 }}
+          disabled={mountainFull}
+          onClick={() => visitExplore('hz-stroll')}
+          title={mountainFull ? '今天逛够了，回玲姨茶馆歇一晚再来。' : ''}
+        >🍵 去梅家坞走走{mountainFull ? '（今天逛够啦）' : `（今天还能去 ${mountainLeft} 回）`}</button>
+      )}
       <button className="btn" style={{ marginTop: 10 }} onClick={() => go('journal')}>📚 我的茶游记</button>
       <button className="btn" style={{ marginTop: 10 }} onClick={() => go('teaworld')}>🌍 回到茶世界</button>
       <button
@@ -82,13 +94,24 @@ export default function MapView() {
       <button
         className="btn"
         style={{ marginTop: 10, fontSize: 13, opacity: 0.6 }}
-        onClick={() => {
-          if (window.confirm('确定要重新开始游历吗？\n认识的人、做过的茶、收藏的纪念都会清空，回到刚进山的那一天。')) {
-            localStorage.removeItem('teaworld.save.v3');
-            window.location.reload();
-          }
-        }}
+        onClick={() => setConfirmReset(true)}
       >↺ 重新开始游历</button>
+
+      {confirmReset && (
+        <div className="confirm-leave" onClick={() => setConfirmReset(false)}>
+          <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
+            <p className="confirm-title">重新开始游历？</p>
+            <p className="confirm-sub">认识的人、做过的茶、收藏的纪念都会清空，回到刚进山的那一天。</p>
+            <div className="confirm-actions">
+              <button className="btn" onClick={() => setConfirmReset(false)}>再想想</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => { setConfirmReset(false); reset(); }}
+              >确定重来</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

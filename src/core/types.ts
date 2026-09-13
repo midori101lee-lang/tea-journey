@@ -275,11 +275,17 @@ export interface Player {
   madeTeas: Record<string, boolean>;
   /** 茶具收藏（长期持有，与茶叶背包 inventory 分开）。存茶具 id 列表；买一次长期拥有，不消耗、不重复购买。 */
   teaWareInventory: string[];
+  /** 已解锁的隐藏成就 id 列表（一次性事件触发，不累计、不按锅数）。缺省为未解锁任何隐藏成就。 */
+  hiddenAchievements?: string[];
   /** 当前所在的茶区 id（多茶区旅行用；当前只有 wuyishan）。 */
   currentRegion: string;
   /** 每个茶区各自的旅行天数（游戏内旅行日，非现实日历）。
    *  首次进入 = 1；回茶馆歇一晚 +1；不重复进入不重置。与山路限次 / 茶集市行情共用同一天概念（day 同步为本茶区天数）。 */
   regionDays: Record<string, number>;
+  /** 每日分享奖励日期（YYYY-MM-DD）：记录玩家最近一次成功领取分享奖励的日期。
+   *  每日任意一种分享（制茶 / 泡茶 / 茶席）首次成功分享即 +20，之后当天其余分享不再发钱（每日上限 20）。
+   *  仅用于分享奖励判定，不参与任何玩法逻辑；旧档经 storage.migrate 自动补 undefined。 */
+  shareRewardDate?: string;
 }
 
 /** 熟练度四档（C1 采用资料库版本）：初学 / 入门 / 熟手 / 老练 */
@@ -326,6 +332,37 @@ export const BATCH_ACHIEVEMENTS: BatchAchievement[] = [
 
 export function earnedAchievementIds(player: Player): string[] {
   return BATCH_ACHIEVEMENTS.filter((a) => player.totalMade >= a.need).map((a) => a.id);
+}
+
+// ─────────── 隐藏成就：一次性事件触发，不累计、不按锅数 ───────────
+// 与 BATCH_ACHIEVEMENTS（基于 totalMade 累计）完全分开：隐藏成就靠「某个条件首次达成」解锁，
+// 不进入累计体系、不重复计数、不写复杂状态。存档里只存已解锁 id 列表（player.hiddenAchievements），
+// 解锁逻辑幂等：已解锁的 id 再次出现不会重复写入、不会报错（兼容旧档 / 已得成就的存档）。
+
+export interface HiddenAchievement {
+  id: string;
+  icon: string;
+  name: string;
+  desc: string;
+}
+
+/**
+ * 隐藏成就注册表（目前只有一个，但结构预留多个）。
+ * 触发条件写在各自的解锁点（如 gameStore.finishMaking），此处只描述「是什么」。
+ */
+export const HIDDEN_ACHIEVEMENTS: HiddenAchievement[] = [
+  {
+    id: 'iron_palm',
+    icon: '🖐️🔥',
+    name: '铁砂掌',
+    desc: '锅底近200℃。茶叶没糊，手也还在。',
+  },
+];
+
+/** 读取玩家已解锁的隐藏成就（旧档 hiddenAchievements 缺省为空数组，天然兼容）。 */
+export function hiddenAchievementsOf(player: Player): HiddenAchievement[] {
+  const earned = player.hiddenAchievements ?? [];
+  return HIDDEN_ACHIEVEMENTS.filter((a) => earned.includes(a.id));
 }
 
 // ─────────── 事件 ───────────
@@ -392,6 +429,9 @@ export interface Dialogue {
   unlocksClue?: string;
   /** 赠予一件旅行纪念物（明信片 / 地方纪念物等），进入「游记收藏」而非茶叶背包。 */
   givesSouvenir?: string;
+  /** 赠予一件剧情茶具（如玲姨相赠的「杭州玻璃杯」）。进入玩家茶具收藏（teaWareInventory），与茶叶背包分开；
+   *  不进茶集市、不标价、不可购买；为未来「我的茶席」预留（茶席可直接读取茶具收藏摆上茶席）。 */
+  givesTeaWare?: string;
   /** 赠予若干份茶（如区域告别礼「武夷山茶礼」）。grade 沿用现有 Grade 档；
    *  giftTag 为一次性旅途赠礼标记（入篓时 source='gift'，不参与普通出售）。 */
   givesTea?: { teaId: string; grade: Grade; count: number; giftTag?: string }[];
@@ -442,6 +482,8 @@ export interface EncounterOutcome {
   setsFlags?: Record<string, boolean | number>;
   addCoins?: number;                 // 可负（扣茶钱）
   giveTea?: { teaId: string; grade: Grade; roastLevel?: string; count?: number; unitValue: number };
+  /** 一次给多包茶（如「乌牛早＋九曲红梅」套装）。与 giveTea 并存时优先用 giveTeas。 */
+  giveTeas?: { teaId: string; grade: Grade; roastLevel?: string; count?: number; unitValue: number }[];
   unlockComic?: string;
   addClue?: string;
   goTo?: string;                     // 跳转某 Scene（'map' 等已存在地点）
@@ -480,13 +522,15 @@ export interface EncounterNpc {
   role: string;
   /** 各场景偶遇倾向权重；键缺席或 0 = 该场景不会出现此人。 */
   scenes: Partial<Record<EncounterScene, number>>;
+  /** 限定出现的茶区（可选）：如牛姐只在杭州茶集市。缺省 = 全茶区可遇（沿用旧行为）。 */
+  regions?: string[];
   requires?: (player: Player) => boolean;
   events: EncounterEvent[];
 }
 
 // ─────────── 漫画 / 知识卡（轻量，2–4 格） ───────────
 
-export type ComicKind = 'process' | 'terroir' | 'story' | 'person';
+export type ComicKind = 'process' | 'terroir' | 'story' | 'person' | 'brew';
 export interface ComicPanel { caption: string; art?: string; }
 export interface Comic {
   id: string;

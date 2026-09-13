@@ -79,6 +79,43 @@ export const COMICS: Comic[] = [
       { caption: '「九曲」是这一带弯弯的山溪，「红梅」说的是那口红亮甜润——名字里，就是杭州。', art: 'meijiawu-village' },
     ],
   },
+
+  // ─────────── 杭州 · 龙井茶漫画（玻璃杯观茶） ───────────
+  // 轻量 4 格，讲「喝龙井」的体验而非「做龙井」的工艺：用透明杯看茶叶舒展、汤色、叶形。
+  // 画风与武夷山一致（手绘 + 轻水墨 + 水彩）。龙井色取自然黄绿 / 嫩黄绿，不荧光绿。
+  // 由玲姨赠玻璃杯对话顺手解锁（unlocksComic）。
+  {
+    id: 'comic_longjing_glass',
+    regionId: 'hangzhou',
+    kind: 'brew',
+    title: '为什么龙井喜欢用玻璃杯',
+    source: '杭州地方茶俗 · 玻璃杯观茶（生活观察）',
+    triggerNote: '玲姨送玻璃杯后，顺手解锁',
+    panels: [
+      { caption: '为什么龙井喜欢用玻璃杯？透明的一只，能看见茶叶自己。', art: 'glass-longjing-intro' },
+      { caption: '热水一冲，扁平的龙井叶子慢慢舒展开来。', art: 'glass-longjing-steep' },
+      { caption: '叶子落进杯底，慢慢舒展开来——先别急着喝，先看一看。', art: 'glass-longjing-watch' },
+      { caption: '清亮的茶汤里，嫩绿的叶子舒展开——这也是喝龙井的一部分乐趣。', art: 'glass-longjing-enjoy' },
+    ],
+  },
+  // 乌牛早 vs 西湖龙井：由周伯辨茶剧情解锁（牛姐彩蛋收尾）。
+  // 6 格左右对比：重在「像而易辨」——两边色系都用自然嫩绿/黄绿，不搞一绿一黄的夸张区分。
+  {
+    id: 'comic_wuniuzao_longjing',
+    regionId: 'hangzhou',
+    kind: 'brew',
+    title: '乌牛早 vs 西湖龙井',
+    source: '杭州茶集市见闻 · 辨茶笔记（生活观察）',
+    triggerNote: '周伯辨茶后解锁',
+    panels: [
+      { caption: '长得这么像？——都是扁形绿茶，乍一看，还真容易认错。', art: 'wuniuzao-vs-intro' },
+      { caption: '看形状：乌牛早短、肥、齐，芽叶肥壮；龙井扁、挺、秀，条形更修长。', art: 'wuniuzao-vs-shape' },
+      { caption: '看颜色：乌牛早翠绿光润；龙井嫩绿鲜润，绿中带黄。颜色不能单独定输赢。', art: 'wuniuzao-vs-color' },
+      { caption: '闻香气：乌牛早清鲜直接；龙井清香嫩香，好茶还带炒豆、板栗似的香气——香气也要结合工艺判断。', art: 'wuniuzao-vs-aroma' },
+      { caption: '喝滋味：乌牛早鲜爽甘醇；龙井鲜醇甘爽。入口之后，才知道一杯茶真正的滋味。', art: 'wuniuzao-vs-taste' },
+      { caption: '乌牛早 ≠ 西湖龙井。长得像，不代表是同一种茶——茶没有高低，冒充才有问题。', art: 'wuniuzao-vs-final' },
+    ],
+  },
 ];
 
 export function getComic(id: string): Comic | undefined {

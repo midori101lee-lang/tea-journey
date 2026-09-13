@@ -1,15 +1,28 @@
+import { useState } from 'react';
 import { getTea, STEP_META } from '../../core/data/teas';
 import { regionLocationScene } from '../../core/data/regions';
 import { GRADE_LABEL, proficiencyLabel } from '../../core/types';
 import { useGame } from '../../store/gameStore';
 import type { Scene } from '../../store/gameStore';
+import { IS_XHS } from '../../core/platform';
+import ShareSheet from '../../components/ShareSheet';
+import type { SharePayload } from '../../components/ShareSheet';
 import { TeaLeavesPile } from '../../components/art/Art';
+
+/** 龙井（绿茶）结果页的轻量「整理 / 装袋」环节：炒制完成后给一个收尾的小互动，
+ *  让玩家感到「这包茶终于可以带走 / 出售 / 喝掉了」。不新增茶叶属性、不改动库存逻辑，
+ *  只是结果页上的一段展示型交互（茶早已在 finishMaking 时入篓）。 */
+type PackStep = 'idle' | 'tidied' | 'bagged';
 
 export default function ResultView() {
   const { lastResult, player, go, startMaking, startBrewFromStack } = useGame();
+  const [packStep, setPackStep] = useState<PackStep>('idle');
+  const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
   if (!lastResult) return null;
   const tea = getTea(lastResult.teaId);
   const isFail = lastResult.grade === 'fail';
+  // 仅西湖龙井（绿茶）走这条轻量收尾；其余茶类沿用原有结果页，不受影响。
+  const isLongjing = lastResult.teaId === 'longjing';
   // 「带去茶桌泡一杯」直接定位刚入篓的那一 stack 进入泡茶：与茶篓选茶共用同一条入口，
   // 从而正确记录 brewingStackId，泡完结算时只扣这一包（自制/购买/赠送统一逻辑）。
   const madeStackId = `${lastResult.teaId}:${lastResult.grade}:${lastResult.roastLevel}`;
@@ -70,6 +83,33 @@ export default function ResultView() {
         <div className="hint" style={{ marginTop: 8 }}>🎒 已收入茶篓</div>
       </div>
 
+      {/* 龙井专属的轻量收尾：整理茶叶 → 装入茶袋 → 成品信息。纯展示交互，不阻挡后续操作。 */}
+      {isLongjing && (
+        <div style={{ marginTop: 14, background: 'var(--paper-2)', border: '1px dashed var(--ochre)', borderRadius: 12, padding: 16 }}>
+          <div className="hint" style={{ letterSpacing: '0.2em' }}>亲手做的茶，收一收</div>
+          {packStep === 'idle' && (
+            <button className="btn btn-primary" style={{ marginTop: 10 }} onClick={() => setPackStep('tidied')}>整理茶叶</button>
+          )}
+          {packStep === 'tidied' && (
+            <>
+              <p className="note" style={{ marginTop: 8 }}>你把茶叶在掌心里摊开，理去碎末，拢成一束。</p>
+              <button className="btn btn-primary" onClick={() => setPackStep('bagged')}>装入茶袋</button>
+            </>
+          )}
+          {packStep === 'bagged' && (
+            <>
+              <p className="note" style={{ marginTop: 8 }}>这包龙井，终于可以带走、出售、喝掉了。</p>
+              <div style={{ marginTop: 10, textAlign: 'left' }}>
+                <div className="h-serif" style={{ marginBottom: 4 }}>【西湖龙井】</div>
+                <div className="note" style={{ color: 'var(--ink-2)' }}>色泽：嫩绿</div>
+                <div className="note" style={{ color: 'var(--ink-2)' }}>香气：清鲜</div>
+                <div className="note" style={{ color: 'var(--ink-2)' }}>形态：扁平挺秀</div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="hint" style={{ marginTop: 10 }}>
         制茶熟练度：{proficiencyLabel(player.proficiency)}
       </div>
@@ -84,9 +124,23 @@ export default function ResultView() {
         <button className="btn" onClick={() => go('journal')}>看看茶游记</button>
         <button className="btn" onClick={() => go('map')}>🗺️ 回茶地图</button>
       </div>
+      {/* 小红书分享入口（仅 XHS）：分享制茶结果，可选、不阻断主线。 */}
+      {IS_XHS && (
+        <button className="btn" style={{ marginTop: 10 }} onClick={() => setSharePayload({
+          kind: 'making',
+          title: '这一锅茶',
+          lines: [
+            `${tea.fullName} · ${GRADE_LABEL[lastResult.grade]}`,
+            lastResult.comment,
+            `${processLabel}：${lastResult.roastLevel}`,
+            `今日制茶熟练度：${proficiencyLabel(player.proficiency)}`,
+          ],
+        })}>分享制茶结果</button>
+      )}
       <button className="btn" style={{ marginTop: 10, border: 'none', background: 'none', boxShadow: 'none' }} onClick={() => go(gardenScene)}>
         回到茶园 / 换一种茶
       </button>
+      <ShareSheet payload={sharePayload} onClose={() => setSharePayload(null)} />
     </div>
   );
 }

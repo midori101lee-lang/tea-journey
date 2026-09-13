@@ -249,6 +249,169 @@ const ART: Record<string, ReactElement> = {
       <path d="M8 50 q3 -9 0 -14 M92 50 q3 -9 0 -14" stroke={INK} strokeWidth="1" fill="none" opacity="0.3" />
     </g>
   ),
+
+  // ─────────── 杭州 · 龙井 × 玻璃杯（4 格） ───────────
+  // 透明杯 + 扁平嫩绿龙井叶 + 舒展 + 清亮汤色；龙井取自然黄绿 / 嫩黄绿，不荧光绿。
+
+  // 第1格：透明玻璃杯 + 杯旁几片干龙井（扁平、嫩黄绿）
+  'glass-longjing-intro': (
+    <g>
+      <path d="M33 24 L37 58 Q50 62 63 58 L67 24 Z" fill="#eaf2f4" opacity="0.5" stroke={INK} strokeWidth="1.1" />
+      <ellipse cx="50" cy="24" rx="17" ry="4" fill="#f3f8f9" opacity="0.6" stroke={INK} strokeWidth="1" />
+      <path d="M40 30 q-2 14 -1 26" stroke="#ffffff" strokeWidth="2" fill="none" opacity="0.5" strokeLinecap="round" />
+      <path d="M70 52 q9 -3 13 -11 q-11 -1 -13 11z" fill="#aebd6f" stroke={INK} strokeWidth="0.9" />
+      <path d="M74 58 q8 -2 12 -9 q-10 0 -12 9z" fill="#bccb7e" stroke={INK} strokeWidth="0.9" />
+      <path d="M68 60 q7 -2 11 -8 q-9 0 -11 8z" fill="#9fb05f" stroke={INK} strokeWidth="0.9" />
+    </g>
+  ),
+
+  // 第2格：热水一冲，叶子刚入水、开始舒展
+  'glass-longjing-steep': (
+    <g>
+      <path d="M33 24 L37 58 Q50 62 63 58 L67 24 Z" fill="#eef4ee" opacity="0.55" stroke={INK} strokeWidth="1.1" />
+      <path d="M35 40 Q50 44 65 40 L63 57 Q50 61 37 57 Z" fill="#dce9c8" opacity="0.5" />
+      <ellipse cx="50" cy="24" rx="17" ry="4" fill="#f3f8f9" opacity="0.6" stroke={INK} strokeWidth="1" />
+      <path d="M44 46 q8 -4 14 -1 q-6 5 -14 1z" fill="#aebd6f" stroke={INK} strokeWidth="0.9" />
+      <path d="M50 50 q9 -3 15 0 q-7 5 -15 0z" fill="#bccb7e" stroke={INK} strokeWidth="0.9" />
+      <path d="M40 52 q7 -2 12 1 q-5 4 -12 -1z" fill="#9fb05f" stroke={INK} strokeWidth="0.9" />
+    </g>
+  ),
+
+  // 第3格：叶子在杯里舒展开（极简，呼应「看。」）
+  'glass-longjing-watch': (
+    <g>
+      <path d="M33 24 L37 58 Q50 62 63 58 L67 24 Z" fill="#eaf2f4" opacity="0.5" stroke={INK} strokeWidth="1.1" />
+      <ellipse cx="50" cy="24" rx="17" ry="4" fill="#f3f8f9" opacity="0.6" stroke={INK} strokeWidth="1" />
+      <path d="M38 52 q6 -10 12 -10 q6 0 12 10 q-12 4 -24 0z" fill="#aebd6f" stroke={INK} strokeWidth="0.9" />
+      <path d="M42 50 q4 -6 8 -6 q4 0 8 6" stroke={INK} strokeWidth="0.7" fill="none" opacity="0.5" />
+      <path d="M40 55 q10 -3 20 0" stroke="#9fb05f" strokeWidth="0.9" fill="none" opacity="0.7" />
+    </g>
+  ),
+
+  // 第4格：清亮嫩黄绿茶汤里，叶子舒展开
+  'glass-longjing-enjoy': (
+    <g>
+      <path d="M33 24 L37 58 Q50 62 63 58 L67 24 Z" fill="#eaf2f4" opacity="0.45" stroke={INK} strokeWidth="1.1" />
+      <path d="M34.5 38 Q50 42 65.5 38 L63 57 Q50 61 37 57 Z" fill="#e2e8b0" opacity="0.7" />
+      <ellipse cx="50" cy="24" rx="17" ry="4" fill="#f3f8f9" opacity="0.6" stroke={INK} strokeWidth="1" />
+      <path d="M40 50 q7 -7 14 -6 q6 1 11 9 q-12 4 -25 -3z" fill="#b6c87e" stroke={INK} strokeWidth="0.9" />
+      <path d="M44 48 q3 -5 7 -5 q4 0 7 5" stroke={INK} strokeWidth="0.7" fill="none" opacity="0.5" />
+      <path d="M39 54 q12 -3 22 0" stroke="#9fb05f" strokeWidth="0.9" fill="none" opacity="0.6" />
+      <path d="M58 36 q6 -2 9 -7 q-8 0 -9 7z" fill="#aebd6f" stroke={INK} strokeWidth="0.8" />
+    </g>
+  ),
+
+  // ─────────── 乌牛早 vs 西湖龙井（6 格左右对比，牛姐彩蛋） ───────────
+  // 两边都是扁形绿茶：乌牛早=短肥齐、更翠（#7fa757 系）；龙井=扁挺秀、嫩黄绿（#a8ae58 系）。
+  // 不用一绿一黄的夸张区分，重在「像而易辨」。
+
+  // 第1格：两份干茶并排摆，乍一看真像——顶一个大问号
+  'wuniuzao-vs-intro': (
+    <g>
+      <ellipse cx="27" cy="50" rx="21" ry="9" fill="#eee3c8" stroke={INK} strokeWidth="1" />
+      <ellipse cx="73" cy="50" rx="21" ry="9" fill="#eee3c8" stroke={INK} strokeWidth="1" />
+      <path d="M50 12 v34" stroke={INK} strokeWidth="0.7" strokeDasharray="2.5 2.5" opacity="0.4" />
+      {/* 左：乌牛早——短、肥、齐 */}
+      <path d="M16 48 q6 -7 13 -7 q-5 8 -13 7z" fill="#7fa757" stroke={INK} strokeWidth="0.9" />
+      <path d="M24 51 q6 -8 14 -7 q-6 9 -14 7z" fill="#8db264" stroke={INK} strokeWidth="0.9" />
+      <path d="M19 54 q5 -6 12 -6 q-5 7 -12 6z" fill="#6f9c4d" stroke={INK} strokeWidth="0.9" />
+      <path d="M30 46 q3 -4 6 -4 q-2 5 -6 4z" fill="#8db264" stroke={INK} strokeWidth="0.8" />
+      {/* 右：龙井——扁、挺、秀 */}
+      <path d="M60 47 q10 -5 21 -3 q-9 6 -21 3z" fill="#a8ae58" stroke={INK} strokeWidth="0.9" />
+      <path d="M63 52 q11 -4 22 -1 q-10 5 -22 1z" fill="#b3b76a" stroke={INK} strokeWidth="0.9" />
+      <path d="M62 56 q10 -3 20 0 q-9 4 -20 0z" fill="#9aa050" stroke={INK} strokeWidth="0.9" />
+      <text x="50" y="14" textAnchor="middle" fontSize="13" fill={INK}>？</text>
+      <text x="27" y="65" textAnchor="middle" fontSize="4.6" fill={INK}>乌牛早</text>
+      <text x="73" y="65" textAnchor="middle" fontSize="4.6" fill={INK}>龙井</text>
+    </g>
+  ),
+
+  // 第2格：形状对比——左短肥齐、芽锋显；右修长挺秀
+  'wuniuzao-vs-shape': (
+    <g>
+      <path d="M50 8 v54" stroke={INK} strokeWidth="0.7" strokeDasharray="2.5 2.5" opacity="0.4" />
+      {/* 左：短、肥、齐（胖乎乎的短条，芽头饱满） */}
+      <path d="M14 40 q2 -12 10 -14 q8 2 10 14 q-10 5 -20 0z" fill="#7fa757" stroke={INK} strokeWidth="1" />
+      <path d="M24 26 q2 -3 4 0" stroke={INK} strokeWidth="0.8" fill="none" opacity="0.7" />
+      <path d="M36 46 q2 -11 9 -13 q8 2 9 13 q-9 5 -18 0z" fill="#8db264" stroke={INK} strokeWidth="1" />
+      <path d="M45 33 q2 -3 4 0" stroke={INK} strokeWidth="0.8" fill="none" opacity="0.7" />
+      <path d="M12 56 q2 -10 9 -12 q8 2 9 12 q-9 4 -18 0z" fill="#6f9c4d" stroke={INK} strokeWidth="1" />
+      <text x="27" y="66" textAnchor="middle" fontSize="5" fill={INK}>短 · 肥 · 齐</text>
+      {/* 右：扁、挺、秀（修长的平直条） */}
+      <path d="M60 36 q14 -6 28 -2 q-13 7 -28 2z" fill="#a8ae58" stroke={INK} strokeWidth="1" />
+      <path d="M62 46 q14 -5 27 -1 q-12 6 -27 1z" fill="#b3b76a" stroke={INK} strokeWidth="1" />
+      <path d="M61 55 q13 -4 26 -1 q-12 5 -26 1z" fill="#9aa050" stroke={INK} strokeWidth="1" />
+      <text x="74" y="66" textAnchor="middle" fontSize="5" fill={INK}>扁 · 挺 · 秀</text>
+    </g>
+  ),
+
+  // 第3格：颜色对比——左翠绿光润、右嫩绿带黄；都自然，不荧光
+  'wuniuzao-vs-color': (
+    <g>
+      <path d="M50 10 v50" stroke={INK} strokeWidth="0.7" strokeDasharray="2.5 2.5" opacity="0.4" />
+      <rect x="12" y="20" width="30" height="26" rx="3" fill="#7fa757" stroke={INK} strokeWidth="1" />
+      <rect x="15" y="23" width="24" height="12" rx="2" fill="#8db264" opacity="0.85" />
+      <path d="M18 40 q7 -5 16 -4 q-7 6 -16 4z" fill="#6f9c4d" stroke={INK} strokeWidth="0.8" />
+      <text x="27" y="56" textAnchor="middle" fontSize="5" fill={INK}>翠绿光润</text>
+      <rect x="58" y="20" width="30" height="26" rx="3" fill="#a8ae58" stroke={INK} strokeWidth="1" />
+      <rect x="61" y="23" width="24" height="12" rx="2" fill="#bcbc72" opacity="0.85" />
+      <path d="M64 40 q7 -5 16 -4 q-7 6 -16 4z" fill="#b3a95e" stroke={INK} strokeWidth="0.8" />
+      <text x="73" y="56" textAnchor="middle" fontSize="5" fill={INK}>嫩绿带黄</text>
+      <text x="50" y="66" textAnchor="middle" fontSize="4.2" fill={INK} opacity="0.75">—— 颜色不能单独定输赢 ——</text>
+    </g>
+  ),
+
+  // 第4格：闻香——左清鲜一缕；右多一缕，还带炒豆、板栗似的炒制香
+  'wuniuzao-vs-aroma': (
+    <g>
+      <path d="M50 10 v50" stroke={INK} strokeWidth="0.7" strokeDasharray="2.5 2.5" opacity="0.4" />
+      {/* 左杯 + 一缕香 */}
+      <path d="M18 38 L20 52 Q27 55 34 52 L36 38 Z" fill="#f6f1e6" stroke={INK} strokeWidth="1" />
+      <path d="M27 34 q-3 -5 0 -9 q3 -4 0 -8" stroke="#9db37f" strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.85" />
+      <text x="27" y="62" textAnchor="middle" fontSize="4.6" fill={INK}>清鲜直接</text>
+      {/* 右杯 + 两缕香 + 一颗小板栗 */}
+      <path d="M64 38 L66 52 Q73 55 80 52 L82 38 Z" fill="#f6f1e6" stroke={INK} strokeWidth="1" />
+      <path d="M70 34 q-3 -5 0 -9 q3 -4 0 -8" stroke="#9db37f" strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.85" />
+      <path d="M78 34 q3 -5 0 -9 q-3 -4 0 -8" stroke="#9db37f" strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.85" />
+      <ellipse cx="86" cy="44" rx="4" ry="3.2" fill="#c9a06a" stroke={INK} strokeWidth="0.8" />
+      <path d="M86 41 v6" stroke={INK} strokeWidth="0.6" opacity="0.5" />
+      <text x="73" y="62" textAnchor="middle" fontSize="4.6" fill={INK}>豆香 · 板栗</text>
+      <text x="50" y="68" textAnchor="middle" fontSize="4.2" fill={INK} opacity="0.75">—— 光闻一下可不够 ——</text>
+    </g>
+  ),
+
+  // 第5格：滋味——两杯汤色同属嫩绿/黄绿系，只差一点点（像而不一样）
+  'wuniuzao-vs-taste': (
+    <g>
+      <path d="M50 10 v50" stroke={INK} strokeWidth="0.7" strokeDasharray="2.5 2.5" opacity="0.4" />
+      <path d="M16 28 L18.5 50 Q27 54 35.5 50 L38 28 Z" fill="#eef4ee" opacity="0.6" stroke={INK} strokeWidth="1" />
+      <path d="M17.5 34 Q27 37 36.5 34 L34.8 49 Q27 52.5 19.2 49 Z" fill="#d9e79f" />
+      <ellipse cx="27" cy="28" rx="11" ry="2.6" fill="#f3f8f9" opacity="0.6" stroke={INK} strokeWidth="0.9" />
+      <text x="27" y="62" textAnchor="middle" fontSize="4.6" fill={INK}>鲜爽甘醇</text>
+      <path d="M62 28 L64.5 50 Q73 54 81.5 50 L84 28 Z" fill="#eef4ee" opacity="0.6" stroke={INK} strokeWidth="1" />
+      <path d="M63.5 34 Q73 37 82.5 34 L80.8 49 Q73 52.5 65.2 49 Z" fill="#e6e9ac" />
+      <ellipse cx="73" cy="28" rx="11" ry="2.6" fill="#f3f8f9" opacity="0.6" stroke={INK} strokeWidth="0.9" />
+      <text x="73" y="62" textAnchor="middle" fontSize="4.6" fill={INK}>鲜醇甘爽</text>
+      <text x="50" y="68" textAnchor="middle" fontSize="4.2" fill={INK} opacity="0.75">—— 入口之后，才知道真正的滋味 ——</text>
+    </g>
+  ),
+
+  // 第6格：总结——两片立起的叶子，中间一个大 ≠
+  'wuniuzao-vs-final': (
+    <g>
+      {/* 左：乌牛早叶（矮壮、翠绿） */}
+      <path d="M27 58 q-9 -4 -9 -16 q0 -12 9 -18 q9 6 9 18 q0 12 -9 16z" fill="#7fa757" stroke={INK} strokeWidth="1.1" />
+      <path d="M27 52 v-22 M27 44 q-4 -3 -6 -6 M27 40 q4 -3 6 -6" stroke={INK} strokeWidth="0.7" fill="none" opacity="0.55" />
+      <text x="27" y="66" textAnchor="middle" fontSize="5" fill={INK}>乌牛早</text>
+      {/* 右：龙井叶（修长、嫩黄绿） */}
+      <path d="M73 60 q-7 -5 -7 -19 q0 -14 7 -22 q7 8 7 22 q0 14 -7 19z" fill="#a8ae58" stroke={INK} strokeWidth="1.1" />
+      <path d="M73 54 v-28 M73 44 q-3.5 -3 -5 -7 M73 38 q3.5 -3 5 -7" stroke={INK} strokeWidth="0.7" fill="none" opacity="0.55" />
+      <text x="73" y="68" textAnchor="middle" fontSize="5" fill={INK}>西湖龙井</text>
+      {/* 中：≠ */}
+      <path d="M44 34 h12 M44 41 h12" stroke={INK} strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M45 44 l10 -13" stroke={INK} strokeWidth="1.6" strokeLinecap="round" />
+    </g>
+  ),
 };
 
 export default function ComicArt({ kind }: { kind: string }) {

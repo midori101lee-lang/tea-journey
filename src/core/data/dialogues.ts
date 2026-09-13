@@ -63,6 +63,27 @@ export const DIALOGUES: Dialogue[] = [
       { speaker: '老陈', text: '下回带你去认认那几棵母树？', mood: 'calm' },
     ],
   },
+  {
+    // 老陈寒暄（武夷山茶席解锁）：林姑娘邀请被接受 → 回武夷山进茶馆先寒暄，
+    // 剧情结果自然收口为「解锁武夷山·我的茶席」——不是系统公告。
+    // 一次性（落 wuyishan_teaseat_unlocked）；旧存档无前置 flag → 不触发。
+    id: 'laochen_wuyi_return',
+    npcId: 'laochen',
+    scene: 'teahouse',
+    sceneArt: 'teahouse',
+    trigger: { kind: 'conditional', flag: 'laochen_wuyi_return_ready' },
+    setsFlags: { wuyishan_teaseat_unlocked: 1 },
+    lines: [
+      { speaker: '老陈', text: '哟，舍得回来了？', mood: 'warm' },
+      { speaker: '你', text: '杭州待了一阵，带了点新鲜东西回来。' },
+      { speaker: '老陈', text: '杭州的茶？', mood: 'calm' },
+      { speaker: '你', text: '还有他们喝茶的法子。' },
+      { speaker: '老陈', text: '那正好。回来坐坐，咱们也看看杭州人怎么喝茶。', mood: 'warm' },
+      { speaker: '老陈', text: '后头那块地方空着也是空着——摆张桌子，回来喝茶正好。', mood: 'calm' },
+      { speaker: '你', text: '以后还能请大家一块儿喝？' },
+      { speaker: '老陈', text: '当然。茶嘛，一个人喝是喝，大家坐一块儿才热闹。', mood: 'warm' },
+    ],
+  },
 
   // ── 阿秀 · 茶园（第一次） ──
   {
@@ -114,16 +135,9 @@ export const DIALOGUES: Dialogue[] = [
       { speaker: '周伯', text: '泡功夫茶讲究个「出汤时机」。早了淡，晚了闷。你看这汤色。', mood: 'calm' },
     ],
   },
-  // 周伯 · 点评（条件：茶已做好，由 store 附带结果评语）
-  {
-    id: 'zhoubo_review',
-    npcId: 'zhoubo',
-    scene: 'teatable',
-    trigger: { kind: 'conditional', flag: 'tea_made', value: 1 },
-    lines: [
-      { speaker: '周伯', text: '嗯。这锅是你自己做的，对吧？', mood: 'dry' },
-    ],
-  },
+  // （旧 zhoubo_review / zhoubo_hz_teatable 两条静态 repeat 对白已删除——
+  //   它们不读当前茶叶，是「泡龙井说九曲红梅」错配的根源；
+  //   茶桌日常闲聊改由 ZhouBoTableDialog 按 地区×当前茶叶×话题 动态生成，见 zhouboChat.ts。）
 
   // ── 老陈 · 茶集市解锁提示（条件：三种茶都亲手做过） ──
   {
@@ -263,6 +277,31 @@ export const DIALOGUES: Dialogue[] = [
     ],
   },
 
+  // 玲姨 · 茶馆（赠杭州玻璃杯）：玩家完成龙井制茶 + 达成隐藏成就「铁砂掌」后，回茶馆触发。
+  // 生活化的奖励：玲姨知道你自己做出了龙井，顺带聊起喝法，送一只玻璃杯。
+  // 重点不是科普，是「自己做的茶，好好喝一杯」的生活感；玻璃杯是纪念，不是强制装备。
+  // 一次性：派生条件「有铁砂掌 且 未领过」；领取后落 received_hz_glass_cup，兼容旧存档、重进不重复。
+  {
+    id: 'lingyi_glass_cup',
+    npcId: 'lingyi',
+    scene: 'hz-teahouse',
+    sceneArt: 'hz-teahouse',
+    trigger: { kind: 'conditional', flag: 'lingyi_glass_cup_ready', value: true },
+    setsFlags: { received_hz_glass_cup: 1 },
+    givesTeaWare: 'hz-glass-cup',
+    unlocksComic: 'comic_longjing_glass',
+    lines: [
+      { speaker: '玲姨', text: '龙井做出来啦？', mood: 'warm' },
+      { speaker: '你', text: '嗯，自己炒的。', mood: 'calm' },
+      { speaker: '玲姨', text: '龙井做得不错嘛。自己炒出来的茶，可得好好尝尝。', mood: 'warm' },
+      { speaker: '玲姨', text: '喝龙井呀，拿个玻璃杯也挺好。', mood: 'calm' },
+      { speaker: '玲姨', text: '看着叶子在水里慢慢舒展开，喝起来也更有意思。', mood: 'warm' },
+      { speaker: '玲姨', text: '这只杯子你拿去——往后泡龙井，就它了。', mood: 'warm' },
+      { speaker: '你', text: '这是……玲姨送的？', mood: 'calm' },
+      { speaker: '玲姨', text: '算是杭州给你留个念想。慢慢喝，不急。', mood: 'joke' },
+    ],
+  },
+
   // 阿青 · 茶园（第一次）：小大人似的小孩，讲的是「看茶」的日常。
   {
     id: 'aqing_garden_first',
@@ -373,20 +412,47 @@ export const DIALOGUES: Dialogue[] = [
       { speaker: '吟诗老人', text: '诗嘛，什么时候想吟，都能吟两句。', mood: 'joke' },
     ],
   },
-  // ── 周伯 · 杭州茶桌（同一 NPC，换到杭州茶馆环境；读的是当前这泡杭州茶，不串武夷山） ──
-  // 周伯在武夷山就已认识（metNpcs 里），因此这里用 repeat，不重复「初次见面」。
+  // ── 周伯 · 杭州茶桌 ──
+  // （旧 zhoubo_hz_teatable 静态 repeat 已删除：它无条件说「你这九曲红梅……」，
+  //   玩家泡龙井时即出现跨茶错配。杭州茶桌的日常闲聊同样由 ZhouBoTableDialog 动态生成；
+  //   辨茶特殊对话 zhoubo_niujie_tea 保留，由派生条件触发。）
   {
-    id: 'zhoubo_hz_teatable',
+    // 周伯辨茶（牛姐彩蛋知识核心）：玩家泡了牛姐当「龙井」卖的乌牛早。
+    // 不做成答题：周伯观察 → 玩家观察 → 知识点 → 揭晓，一次性播完（完成落 niujie_tea_revealed）。
+    // 知识口径：不写「乌牛早=劣质/假茶」；「早」「越绿越好」「闻香定论」都留有余地，不写成绝对规则。
+    id: 'zhoubo_niujie_tea',
     npcId: 'zhoubo',
     scene: 'hz-teatable',
-    // sceneArt 必须显式指向杭州茶桌：周伯 NPC 默认 sceneArt 是武夷山的 teatable，
-    // 不写会被 NpcStage 回退渲染成「老陈茶馆新」（Bug 2 根因）。
     sceneArt: 'hz-teatable',
-    trigger: { kind: 'repeat' },
+    trigger: { kind: 'conditional', flag: 'zhoubo_niujie_ready' },
+    setsFlags: { niujie_tea_revealed: 1, niujie_brew_pending: 0 },
+    unlocksComic: 'comic_wuniuzao_longjing',
     lines: [
-      { speaker: '周伯', text: '杭州的茶桌，跟武夷山那边，光景不一样。', mood: 'calm' },
-      { speaker: '周伯', text: '你这九曲红梅，我尝了——红的，甜的，跟岩茶完全是两路。', mood: 'dry' },
-      { speaker: '周伯', text: '自己做的，喝着就是不一样。', mood: 'warm' },
+      { speaker: '周伯', text: '嗯？', mood: 'calm' },
+      { speaker: '周伯', text: '这茶……你从哪儿买的？', mood: 'dry' },
+      { speaker: '你', text: '刚才茶集市买的。' },
+      { speaker: '周伯', text: '谁卖给你的？', mood: 'dry' },
+      { speaker: '你', text: '牛姐。她说这是龙井。' },
+      { speaker: '周伯', text: '她说是龙井？', mood: 'dry' },
+      { speaker: '', text: '（周伯放下杯子，捏起一撮干茶，凑到眼前看了半天。）' },
+      { speaker: '周伯', text: '你先别急着喝，再看看叶子。', mood: 'calm' },
+      { speaker: '周伯', text: '先说个最容易记的——乌牛早，名字里就带着个「早」字。特早生的品种，发芽、采摘都赶在前头。', mood: 'calm' },
+      { speaker: '周伯', text: '所以要是有人特别早的时候就拍着胸脯说「这是西湖龙井」，你可得多留个心眼。倒不是绝对，但值得多看两眼。', mood: 'dry' },
+      { speaker: '周伯', text: '再看颜色。这茶的绿更翠一些，绿得发亮，嫩绿光润。', mood: 'calm' },
+      { speaker: '周伯', text: '西湖龙井呢，讲究嫩绿鲜润，绿里往往还带一点黄——火工做得足的，甚至有点糙米色。可别以为越绿越好，那是两码事。', mood: 'calm' },
+      { speaker: '周伯', text: '它们都是扁形茶，所以第一眼最容易认错。', mood: 'calm' },
+      { speaker: '周伯', text: '可你仔细瞧——这茶短、肥、齐：芽头肥壮，芽锋也显。龙井讲究的是扁、挺、秀，条形更修长秀气。', mood: 'calm' },
+      { speaker: '', text: '（你把叶子摊在手心比了比，确实一份偏壮实，一份偏秀气。）' },
+      { speaker: '周伯', text: '闻闻看。', mood: 'calm' },
+      { speaker: '周伯', text: '乌牛早的鲜很直接，清鲜、嫩香，做得好也很舒服。龙井的香更有辨识度——清香嫩香之外，做得好的还带炒豆、板栗似的香气。', mood: 'calm' },
+      { speaker: '周伯', text: '不过记住喽，光闻一闻可下不了死结论——香气只是起个头，得跟形、味对上才算数。', mood: 'dry' },
+      { speaker: '周伯', text: '最后还是得喝。', mood: 'warm' },
+      { speaker: '', text: '（你又啜了一口。鲜爽、甘醇，鲜感来得直接——是好茶，只是跟龙井不是一个脾气。）' },
+      { speaker: '周伯', text: '好的龙井，讲究鲜醇甘爽——香气和滋味是连在一起、慢慢化开的。这一杯呢，鲜是鲜，就是来得更直接些。', mood: 'calm' },
+      { speaker: '周伯', text: '乌牛早有乌牛早的味道。它不是龙井，可它自己就是一种茶。', mood: 'calm' },
+      { speaker: '', text: '【辨茶结果】原来不是龙井，而是乌牛早。' },
+      { speaker: '', text: '乌牛早不是「假茶」——它是浙江的特早生茶树品种，做成扁形绿茶后，和龙井长得确实像。真正有问题的，是明明卖的是乌牛早，却故意说成西湖龙井。' },
+      { speaker: '周伯', text: '记住喽——乌牛早没骗你，牛姐骗你了。', mood: 'joke' },
     ],
   },
 ];
@@ -412,4 +478,15 @@ export const DERIVED_DIALOGUE_FLAGS: Record<string, (p: Player) => boolean> = {
   linggu_hangzhou_ready: (p) => p.metNpcs.includes('linggu') && !p.flags['linggu_hangzhou_chat_done'],
   // 捎话的回音：见过阿青 且 玲姨还没道过谢——下次回茶馆给一句轻量回应
   lingyi_aqing_back_ready: (p) => p.metNpcs.includes('aqing') && !p.flags['lingyi_aqing_back_done'],
+  // 玲姨赠杭州玻璃杯：玩家已达成隐藏成就「铁砂掌」（=龙井高难炒制成功）且尚未领取玻璃杯。
+  // 条件即时计算 → 旧存档若已满足铁砂掌，下次回茶馆即触发一次；领取后落 received_hz_glass_cup，重进不重复。
+  lingyi_glass_cup_ready: (p) =>
+    (p.hiddenAchievements ?? []).includes('iron_palm') && !p.flags['received_hz_glass_cup'],
+  // 周伯辨茶（牛姐彩蛋）：玩家泡过牛姐摊上买的乌牛早（finishBrewing 落 niujie_brew_pending），
+  // 且真相还没揭开。乌牛早只可能来自牛姐 → 不会误伤玩家自己的龙井或其他库存。
+  zhoubo_niujie_ready: (p) => !!p.flags['niujie_brew_pending'] && !p.flags['niujie_tea_revealed'],
+  // 老陈寒暄（武夷山茶席解锁）：玩家在杭州接受了林姑娘的邀请回到武夷山，
+  // 进茶馆先寒暄——剧情收口=解锁武夷山「我的茶席」。旧存档无这些 flag → 不触发。
+  laochen_wuyi_return_ready: (p) =>
+    !!p.flags['linggu_wuyi_accepted'] && !p.flags['wuyishan_teaseat_unlocked'],
 };

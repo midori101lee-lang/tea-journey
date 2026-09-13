@@ -140,6 +140,11 @@ export function getZhouBoAfterTeaAdvice(input: ZhouBoInput): ZhouBoAdvice {
     return { comment, suggestion: '好龙井的「形」也在手上——理条那一关，你过了。' };
   }
 
+  // ── 乌牛早（牛姐彩蛋）：不剧透、不下结论——辨茶的细节留给茶桌的辨茶对话讲 ──
+  if (teaId === 'wuniuzao') {
+    return { comment: '嗯……（他端着杯子，先看了半天叶子，没急着喝。）这泡茶，回头细说。' };
+  }
+
   // ── P2：按茶种 × 品质给评价与建议 ──
   if (teaId === 'rougui') {
     if (isFail(grade) || isPlain(grade)) {
