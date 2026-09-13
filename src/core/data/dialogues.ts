@@ -220,6 +220,41 @@ export const DIALOGUES: Dialogue[] = [
     ],
   },
 
+  // ── 小满 · 茶集市（日常 repeat） ──
+  // 关键：小满的 market 池必须有 repeat 对话。NpcDialog.buildSteps 在「first/conditional/repeat 都没命中」
+  // 时会兜底重播整池——若没有这条 repeat，王霸茶剧情（wangba_xiaoman_done 落盘后条件已过期）
+  // 和「初次见面」台词会在每次进集市时被整池兜底重播（用户实测复现的 bug）。
+  // 有了 repeat：见过面后 ordered 恒非空 → 永不触发整池兜底 → 王霸剧情严格一次性。
+  {
+    id: 'xiaoman_market_repeat',
+    npcId: 'xiaoman',
+    scene: 'market',
+    trigger: { kind: 'repeat' },
+    lines: [
+      { speaker: '小满', text: '又来啦。今天集市人不少。', mood: 'warm' },
+      { speaker: '小满', text: '想摆摊就摆，想逛别人摊子就去——你的茶你做主。', mood: 'calm' },
+    ],
+  },
+
+  // ── 小满 · 茶集市（对「景区王霸茶」起疑，任务⑧） ──
+  // 触发：玩家在武夷山从老贾处买过 wangba（bought_wangba 只在「购买瞬间」由偶遇事件置位，
+  // 不看背包里是否还揣着茶），且小满还没当面嘀咕过（派生条件 xiaoman_wangba_suspect）。
+  // 小满只负责「起疑 + 建议找周伯」，不替周伯下结论；周伯后续品鉴复用 ZHOUBO_TASTING[wangba]（茶桌触发）。
+  // 落 wangba_xiaoman_done → 同一存档只提醒一次。语气轻、生活化，符合《茶游记》基调。
+  {
+    id: 'xiaoman_wangba_suspect',
+    npcId: 'xiaoman',
+    scene: 'market',
+    trigger: { kind: 'conditional', flag: 'xiaoman_wangba_suspect', value: true },
+    setsFlags: { wangba_xiaoman_done: 1 },
+    lines: [
+      { speaker: '小满', text: '哎，你这包茶，老贾那儿拿的吧？', mood: 'calm' },
+      { speaker: '小满', text: '这「景区王霸茶」……名字我可没怎么听过。喝着不算差，可来路和价钱，你心里得有个谱。', mood: 'calm' },
+      { speaker: '小满', text: '你也别急着认定它是好是赖。后头茶桌找周伯，泡一杯让他品品——他喝过的茶，比咱见过的都多。', mood: 'warm' },
+      { speaker: '你', text: '成，我去找周伯泡一杯。', mood: 'calm' },
+    ],
+  },
+
   // ─────────── 杭州篇（第二阶段起步：玲姨 / 阿青） ───────────
   // 玲姨 · 茶馆（第一次）：杭州茶生活的引路人，把玩家引向茶园。
   {
@@ -372,6 +407,8 @@ export const DIALOGUES: Dialogue[] = [
       { speaker: '林姑娘', text: '梅家坞这一带的茶园，和武夷山不一样——山势缓些，茶树矮矮的一层，像铺在坡上。', mood: 'calm' },
       { speaker: '林姑娘', text: '采龙井可得挑嫩的。开面叶就老了，别舍不得下手。', mood: 'calm' },
       { speaker: '林姑娘', text: '杭州人喝春茶，讲究一个「鲜」字。火候和手上动作，都得利落。', mood: 'warm' },
+      { speaker: '你', text: '那武夷山的岩茶，到了杭州也有人喝吗？', mood: 'calm' },
+      { speaker: '林姑娘', text: '怎么没有。茶这东西，到了地方就入乡随俗——杭州人爱鲜，岩茶也有人慢慢品。', mood: 'warm' },
     ],
   },
 
@@ -489,4 +526,9 @@ export const DERIVED_DIALOGUE_FLAGS: Record<string, (p: Player) => boolean> = {
   // 进茶馆先寒暄——剧情收口=解锁武夷山「我的茶席」。旧存档无这些 flag → 不触发。
   laochen_wuyi_return_ready: (p) =>
     !!p.flags['linggu_wuyi_accepted'] && !p.flags['wuyishan_teaseat_unlocked'],
+  // 小满对「景区王霸茶」的怀疑（任务⑧）：玩家在武夷山茶集市从老贾处买过 wangba，
+  // 且小满尚未当面嘀咕过 → 回市场时小满先起疑、再建议找周伯品鉴。仅触发一次（wangba_xiaoman_done 落盘后不再重播）；
+  // 限定武夷山（wangba 是武夷山彩蛋，杭州不出现）。
+  xiaoman_wangba_suspect: (p) =>
+    !!p.flags['bought_wangba'] && !p.flags['wangba_xiaoman_done'] && (p.currentRegion ?? 'wuyishan') === 'wuyishan',
 };

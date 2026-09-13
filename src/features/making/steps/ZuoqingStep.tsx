@@ -5,6 +5,7 @@ import { SieveSvg } from '../../../components/art/Art';
 interface Props {
   params: StepParams;
   difficulty: Difficulty;
+  teaId: string;
   /**
    * 天气对做青的轻微影响（来自天气系统，确定性、无 random）：
    *   force —— 理想摇青力度区间偏移（雾/雨略往外推，让玩家觉得“叶子更不好伺候”）
@@ -26,14 +27,23 @@ const EDGE_FULL = 0.8;     // 红边「完全形成」参考值（内部评分�
 type Phase = 'observe' | 'shake' | 'settle' | 'decide';
 type Tier = 'light' | 'fit' | 'hasty';
 
+/** 做青茶种心法（把 TEA_STEP_OVERRIDES 的参数差异转成玩家能理解的一句话；纯文案） */
+const TEA_ZUOQING_HINT: Record<string, string> = {
+  rougui: '肉桂吃香，摇青手上轻一些，别把香气做散、做闷了。',
+  shuixian: '水仙不急，多等等，让叶子慢慢走水。',
+  dahongpao: '大红袍讲究匀——摇也匀，晾也匀，不偏向哪一头。',
+};
+
 /**
  * 做青：观察 → 摇青（力度+时长）→ 静置走水 → 判断是否再摇
  * V0.3 定稿回归：玩家只看叶子的三个变化（红边 / 青气 / 叶态）与一句自然语言，
  * 不出现任何数字、百分比、速度值或「最佳区间」。
  */
-export default function ZuoqingStep({ params, difficulty, weather, onDone }: Props) {
+export default function ZuoqingStep({ params, difficulty, teaId, weather, onDone }: Props) {
   const casual = difficulty === 'casual';
   const targetRounds = params.rounds ?? 3;
+  // 静置观察过久上限：水仙「从容走水」更宽（TEA_STEP_OVERRIDES 传 idleLimit），其余茶用基础值
+  const idleLimit = params.idleLimit ?? 10;
   const base0 = params.idealShakeForce ?? [0.45, 0.72];
   // 采茶「这一篓」的成色：叶子杂的时候，摇青可施展的余地略小（隐藏档，不显示数值）
   const shrink = params.basketQuality === 'rough' ? 0.06 : params.basketQuality === 'normal' ? 0.025 : 0;
@@ -189,7 +199,7 @@ export default function ZuoqingStep({ params, difficulty, weather, onDone }: Pro
     const id = setInterval(() => {
       st.current.idle += 0.1;
       setIdle(st.current.idle);
-      if (st.current.idle > 10) setNote('捂得有点久，闷住了。');
+      if (st.current.idle > idleLimit) setNote('捂得有点久，闷住了。');
     }, 100);
     return () => clearInterval(id);
   }, [phase]);
@@ -209,13 +219,13 @@ export default function ZuoqingStep({ params, difficulty, weather, onDone }: Pro
     const intactScore = Math.max(0, 1 - s.damage / 0.5) * 100;
     let score = edgeScore * 0.45 + greenScore * 0.3 + intactScore * 0.25;
     if (s.rounds < targetRounds) score -= 10;
-    if (s.idle > 10) score -= 15;
+    if (s.idle > idleLimit) score -= 15;
     score = Math.max(0, Math.min(100, score));
 
     const faults: FaultTag[] = [];
     if (s.damage > 0.5) faults.push('zuoqing_hasty');
     else if (s.green > 55) faults.push('zuoqing_light');
-    if (s.idle > 10) faults.push('zuoqing_stale');
+    if (s.idle > idleLimit) faults.push('zuoqing_stale');
 
     onDone({
       step: 'zuoqing',
@@ -230,7 +240,7 @@ export default function ZuoqingStep({ params, difficulty, weather, onDone }: Pro
     <div>
       <div style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>做青 · 看青做青</div>
       <p className="hint">
-        {weather.label}。按住水筛画圈摇青，松手静置走水。摇够了就收，没有标准答案。
+        {weather.label}。{TEA_ZUOQING_HINT[teaId] ?? ''}按住水筛画圈摇青，松手静置走水。摇够了就收，没有标准答案。
       </p>
 
       <div

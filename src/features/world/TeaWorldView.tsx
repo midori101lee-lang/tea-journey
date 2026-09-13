@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '../../store/gameStore';
-import { TEA_WORLD_REGIONS, teaWorldPages, TEA_WORLD_PER_PAGE } from '../../core/data/teaRegions';
+import { TEA_WORLD_REGIONS, teaWorldPages, TEA_WORLD_PER_PAGE, isTeaRegionUnlocked } from '../../core/data/teaRegions';
 import type { TeaRegionCard } from '../../core/data/teaRegions';
 import { TeaLeafSvg } from '../../components/art/Art';
 
@@ -67,8 +67,8 @@ export default function TeaWorldView() {
 
       <div className="tw-grid">
         {slice.map((r) => {
-          // 章节解锁：有 unlockFlag 的茶区（杭州）由 flag 决定；其余沿用静态 unlocked。
-          const unlocked = r.unlockFlag ? !!player.flags[r.unlockFlag] : r.unlocked;
+          // 章节解锁：统一走 isTeaRegionUnlocked（集市跨区流通共用同一判定）。
+          const unlocked = isTeaRegionUnlocked(r.id, player.flags);
           return (
             <button
               key={r.id}

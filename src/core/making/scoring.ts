@@ -124,14 +124,23 @@ export function targetWindowScore(value: number, target: [number, number]): numb
 }
 
 /**
- * 火功标签：轻火/中火/足火是「本次游戏过程形成的结果标签」，
+ * 火功标签（岩茶）：欠火/轻火/中火/足火/高火/病火是「本次游戏过程形成的结果标签」，
  * 不代表对现实茶叶品质的绝对判断，不形成「足火 > 轻火」的等级关系。
+ * 方向由 lean（负=偏轻侧、正=偏足侧）决定；haste 超限=病火（焦味，明显坏结果）。
+ * 高火是「火功风格」标签（焦糖香突出），不直接判焦——焦味/炭化只出现在病火档。
  */
-export function computeRoastLevel(roastScore: number, haste: number): string {
-  if (haste > 1.2) return '足火';
-  if (roastScore >= 70) return haste > 0.5 ? '足火' : '中火';
-  if (roastScore >= 45) return '中火';
-  return '轻火';
+export const ROAST_LEAN_T = 0.03;   // 轻火/足火 分界（|lean|）
+export const ROAST_LEAN_T2 = 0.075; // 欠火/高火 分界（极端侧）
+export const ROAST_OVER_HASTE = 2.2; // 病火线（与配方 hasteThreshold 同源）
+
+export function computeRoastLevel(roastScore: number, haste: number, lean = 0): string {
+  if (haste > ROAST_OVER_HASTE) return '病火';
+  if (lean >= ROAST_LEAN_T2) return '高火';
+  if (lean <= -ROAST_LEAN_T2) return '欠火';
+  if (roastScore < 45 && Math.abs(lean) < ROAST_LEAN_T2) return '轻火'; // 没焙透的兜底
+  if (lean >= ROAST_LEAN_T) return '足火';
+  if (lean <= -ROAST_LEAN_T) return '轻火';
+  return '中火';
 }
 
 export function computeResult(
@@ -168,7 +177,7 @@ export function computeResult(
   // 均为「本次过程形成的结果标签」，不代表对现实茶叶品质的绝对判断。
   let roastLevel: string;
   if (tea.category === 'yancha') {
-    roastLevel = computeRoastLevel(roastOutcome?.score ?? 50, haste);
+    roastLevel = computeRoastLevel(roastOutcome?.score ?? 50, haste, roastOutcome?.lean ?? 0);
   } else if (tea.category === 'hongcha') {
     const f = outcomes.find((o) => o.step === 'fermentation')?.score ?? 50;
     roastLevel = faults.includes('ferment_over') ? '略过' : faults.includes('ferment_short') ? '不足' : f >= 60 ? '到位' : '中';
@@ -248,6 +257,7 @@ export function computeResult(
     stepNotes,
     value: tea.basePrice[grade],
     roastLevel,
+    worstFault: worst ?? undefined,
     faults,
     visuals,
     madeAt: new Date().toISOString(),

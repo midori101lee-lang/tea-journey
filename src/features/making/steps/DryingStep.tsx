@@ -31,7 +31,7 @@ export default function DryingStep({ params, difficulty, teaId = 'jiuquhongmei',
   const speed = 1.0;
   const hasteThreshold = 1.5;
   const casual = difficulty === 'casual';
-  const width = 0.15;
+  const width = 0.11;
 
   const [pos, setPos] = useState(0.5);
   const [tapIndex, setTapIndex] = useState(0);

@@ -2,6 +2,7 @@ import type { Grade } from '../../core/types';
 import { getTea } from '../../core/data/teas';
 import { getNpc } from '../../core/data/npcs';
 import { getTeaWare, type TeaWare } from '../../core/data/teaWares';
+import { isTeaRegionUnlocked } from '../../core/data/teaRegions';
 import { todayMarket } from './marketEval';
 
 // ─────────────────────────────────────────────────────────────
@@ -15,22 +16,59 @@ import { todayMarket } from './marketEval';
 //   5) 摊主与普通偶遇 NPC 共用立绘/场景层，但身份区分、不混系统。
 // ─────────────────────────────────────────────────────────────
 
-/** 适合当「摊主」卖茶的 NPC（来自现有偶遇 NPC，不新增角色）。 */
-export const STALL_OWNERS = [
-  'caicha_ayi',     // 采茶阿姨
-  'young_farmer',   // 年轻茶农
-  'maicha_dashu',   // 卖茶大叔
-  'laojia',         // 茶商老贾
-  'tricycle_farmer' // 三轮车茶农
-] as const;
+/**
+ * 按茶区区分摊主池（复用现有 NPC 立绘/身份，不新增角色）。
+ * 设计：当前茶区本地茶 = 集市主体；本地 NPC 只摆本地茶；
+ * 跨茶区茶商（CROSS_REGION_SELLERS）可在本地茶之外，偶尔带 1 款外地普通茶（彩蛋永不进商品池）。
+ */
+const STALL_OWNERS_BY_REGION: Record<string, readonly string[]> = {
+  wuyishan: ['caicha_ayi', 'young_farmer', 'maicha_dashu', 'tricycle_farmer', 'laojia'],
+  hangzhou: ['linggu', 'lingyi', 'gu_shu', 'laojia'],
+};
+/** 兼容导出：武夷山为默认摊主池（无 region 入参时的历史默认值）。 */
+export const STALL_OWNERS = STALL_OWNERS_BY_REGION.wuyishan;
 
-/** 每位摊主今天可能摆的茶 + 一句招呼（按角色定位，不写成专业断言）。 */
-const OWNER_PROFILE: Record<string, { greeting: string; teas: string[] }> = {
-  caicha_ayi: { greeting: '来看看？都是最近做的。', teas: ['shuixian', 'rougui'] },
-  young_farmer: { greeting: '这锅肉桂我今年做得还挺满意。', teas: ['rougui', 'shuixian', 'dahongpao'] },
-  maicha_dashu: { greeting: '看看？几种都有。', teas: ['rougui', 'shuixian', 'dahongpao'] },
-  laojia: { greeting: '这包可不便宜，不过最近确实有人找。', teas: ['rougui', 'shuixian', 'dahongpao'] },
-  tricycle_farmer: { greeting: '刚从山上带下来的，你要不看看？', teas: ['shuixian', 'rougui'] },
+/**
+ * 跨茶区茶商：可在本地茶之外携带少量外地普通茶。
+ *  - 老贾=游动茶商；林姑娘=游历茶客；年轻男旅客=路上背包客（偶遇层 NPC，本不摆摊，跨区行为由偶遇层承担）。
+ * 普通茶可流通；景区王霸茶(wangba)/乌牛早(wuniuzao)只在各自茶区出现，永不进入此商品池。
+ */
+const CROSS_REGION_SELLERS = new Set(['laojia', 'linggu', 'young_male_traveler']);
+
+/** 当前茶区本地普通茶池（不含彩蛋）。 */
+const LOCAL_TEAS: Record<string, string[]> = {
+  wuyishan: ['rougui', 'shuixian', 'dahongpao'],
+  hangzhou: ['longjing', 'jiuquhongmei'],
+};
+/** 彩蛋永不进商品池（即使在跨茶区茶商的外地茶里也不出现）。 */
+const EGG_TEAS = new Set(['wangba', 'wuniuzao']);
+/** 外地茶提示文案（按当前茶区给一句轻量说明，不每次强行解释）。 */
+const FOREIGN_NOTE: Record<string, string> = {
+  hangzhou: '（这是从武夷山带来的茶，不是杭州本地出的。）',
+  wuyishan: '（这是从杭州带来的茶，不是武夷山本地出的。）',
+};
+/**
+ * 跨区流通核心规则（用户定稿）：
+ *   本地茶 = 集市主体；已解锁外地茶 = 少量流通；未解锁外地茶 = 不实际出售，仅作探索预告。
+ * 跨区茶商带了外地茶但该茶区未解锁时，摊位上出现一个「尚未解锁」的预告位——
+ * 只是展示，不是商品：没有价格、没有品质、不进购买流程、不产生任何茶叶数据。
+ */
+const LOCKED_FOREIGN_TITLE = '？？？茶区 · 尚未解锁';
+const LOCKED_FOREIGN_DESC = '“听说那边有一种很特别的茶……等以后去了再慢慢看吧。”';
+
+/** 每位摊主一句招呼（按角色定位，不写成专业断言）。茶池由当前茶区决定，不写死在这里。 */
+const OWNER_PROFILE: Record<string, { greeting: string }> = {
+  // 武夷山本地摊主
+  caicha_ayi: { greeting: '来看看？都是最近做的。' },
+  young_farmer: { greeting: '这锅肉桂我今年做得还挺满意。' },
+  maicha_dashu: { greeting: '看看？几种都有。' },
+  tricycle_farmer: { greeting: '刚从山上带下来的，你要不看看？' },
+  // 跨茶区茶商
+  laojia: { greeting: '这包可不便宜，不过最近确实有人找。' },
+  // 杭州本地摊主（复用现有 NPC 形象：林姑娘/玲姨/郭叔）
+  linggu: { greeting: '路上带的茶，你随便看看。' },
+  lingyi: { greeting: '来，坐。我这儿也有点茶样。' },
+  gu_shu: { greeting: '年轻人，看看茶？' },
 };
 
 /**
@@ -44,6 +82,9 @@ const WARE_PROFILE: Record<string, string[]> = {
   maicha_dashu: ['white-gaiwan', 'white-teacup', 'fairness-cup'],
   laojia: ['celadon-gaiwan', 'selected-zisha-pot', 'blue-white-tea-caddy', 'rare-travel-teaware'],
   tricycle_farmer: ['bamboo-teaware', 'white-teacup', 'blue-gray-tea-caddy'],
+  linggu: ['white-gaiwan', 'fairness-cup', 'blue-white-tea-caddy'],
+  lingyi: ['white-teacup', 'bamboo-teaware', 'blue-gray-tea-caddy'],
+  gu_shu: ['white-gaiwan', 'white-teacup', 'fairness-cup'],
 };
 
 /** 每款茶、每档品质的一句话（看茶不看数；按茶种+品质轻量变化）。 */
@@ -66,6 +107,19 @@ const TEA_DESC: Record<string, Record<Grade, string[]>> = {
     good: ['岩韵清楚，回味带甜。', '这包大红袍，喝着稳。'],
     fine: ['岩骨花香都齐了，难得。', '这一包，配得上名号。'],
   },
+  // 杭州茶区（龙井=绿茶/九曲红梅=工夫红茶）——仅在杭州集市出现，复用现有茶种设定，不写专业断言。
+  longjing: {
+    fail: ['这锅杀青急了点，青气没压住。'],
+    normal: ['芽叶还整齐，喝着清爽。', '扁扁平平的，看着就精神。'],
+    good: ['一开盖就是嫩香，鲜得很。', '叶底匀，汤色清亮。'],
+    fine: ['这包龙井，扁挺秀丽，闻着就鲜。', '明前那种鲜爽，出来了。'],
+  },
+  jiuquhongmei: {
+    fail: ['这锅发酵没稳住，甜香没出来。'],
+    normal: ['汤色红亮，喝着甜润。', '梅香淡淡的，不冲。'],
+    good: ['红亮透亮，甜香清楚。', '发酵看得准，汤顺回甜。'],
+    fine: ['这一包，红梅之名当得起——香扬汤甜。', '汤色红亮得像琥珀，难得。'],
+  },
 };
 
 export interface StallTea {
@@ -75,6 +129,8 @@ export interface StallTea {
   desc: string;
   /** 小故事标记：deal=捡漏（品质不错却便宜）/ overpriced=买贵（普通茶却偏贵）。无数值奖惩，仅用于周伯品茶反馈。 */
   bargain?: 'deal' | 'overpriced';
+  /** 外地茶轻量提示：跨茶区茶商偶尔带来的外地普通茶，附一句说明（彩蛋不在此列）。 */
+  note?: string;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -95,6 +151,9 @@ export const SELLER_STYLE: Record<string, SellerStyle> = {
   maicha_dashu: 'businesslike', // 卖茶大叔：会做生意、明码标价
   laojia: 'salesy',           // 茶商老贾：会包装
   tricycle_farmer: 'casual',  // 三轮车茶农：随意
+  linggu: 'tea_person',       // 林姑娘：游历茶客，懂点门道
+  lingyi: 'honest',           // 玲姨：实在
+  gu_shu: 'casual',            // 郭叔：随意
 };
 
 /**
@@ -119,6 +178,19 @@ const TEA_LOOK: Record<string, Record<Grade, string[]>> = {
     normal: ['条索还成，颜色深褐。', '有点岩味，不算惊艳。', '名气大，这包就普通喝。'],
     good: ['条索紧结，岩韵清楚。', '焙火到位，回味带甜。', '这包大红袍喝着稳。'],
     fine: ['条索匀润，宝色明显。', '岩骨花香都齐了，难得。', '这一包，配得上名号。'],
+  },
+  // 杭州茶区（看茶话术：龙井=嫩/扁/鲜，九曲红梅=红亮/甜润/梅香）
+  longjing: {
+    fail: ['叶子有点焦边，颜色发暗。', '闻着青味没去干净。'],
+    normal: ['扁平挺直，颜色嫩绿。', '干茶看着清爽，不张扬。', '芽叶整齐，绿得匀。'],
+    good: ['扁平光滑，糙米色好看。', '嫩香清楚，凑近就能闻到。', '叶底朵朵，做工稳。'],
+    fine: ['扁挺秀丽，光润得像上了釉。', '嫩香一开盖就上来，很足。', '这包看着就比一般的细。'],
+  },
+  jiuquhongmei: {
+    fail: ['条索有点松，颜色发暗。', '闻着没什么甜香。'],
+    normal: ['条索还成，汤色红亮。', '颜色乌润，喝着顺口。', '看着普通，自己喝不挑人。'],
+    good: ['条索紧细，金毫隐现。', '甜香清楚，汤色红艳。', '叶底红亮，做工稳。'],
+    fine: ['条索乌润带金毫，漂亮。', '梅香明显，汤色红亮如琥珀。', '这包红茶，醇甜得很，少见。'],
   },
 };
 
@@ -173,9 +245,31 @@ const ASK_ANSWERS: Record<SellerStyle, Record<string, string[]>> = {
   },
 };
 
+/** 当前茶区「哪里」的回答（按茶区给，避免杭州摊主说「武夷山的水仙」这类错位）。 */
+const WHERE_BY_REGION: Record<string, Partial<Record<SellerStyle, string[]>>> = {
+  hangzhou: {
+    honest: ['杭州本地的茶，错不了。', '西湖边上出的，自家喝。'],
+    casual: ['杭州的茶，你尝尝就晓得。', '杭州山里出的，鲜着呢。'],
+    businesslike: ['明码标价，杭州的龙井、九曲红梅。', '这一包杭州红茶，本地的。'],
+    salesy: ['这可是杭州好山场出的，一般人我不拿。', '杭州的水土养的，你闻闻。'],
+    tea_person: ['茶在哪里，味就在哪里——杭州的。', '杭州的茶，顺着时令来。'],
+  },
+  wuyishan: {
+    honest: ['武夷山自家茶山的，错不了。', '山里出的，本村的。'],
+    casual: ['武夷山的茶，你随便看。', '山里出的，错不了。'],
+    businesslike: ['明码标价，武夷山的水仙、肉桂。', '这包武夷山大红袍，山里出的。'],
+    salesy: ['这可是武夷山好山场出的，一般人我不拿出来。', '武夷山的山场不一般，你闻闻。'],
+    tea_person: ['一处好山场，水土养出来的——武夷山的。', '茶嘛，山在哪里，味就在哪里。'],
+  },
+};
+
 /** 「问问老板」抽一句回答（按摊主性格；话术不保证等于真实品质）。 */
-export function askSeller(npcId: string, questionKey: string): string {
+export function askSeller(npcId: string, questionKey: string, region?: string): string {
   const style = SELLER_STYLE[npcId] ?? 'honest';
+  if (questionKey === 'where' && region && WHERE_BY_REGION[region]?.[style]) {
+    const pool = WHERE_BY_REGION[region][style]!;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
   const pool = ASK_ANSWERS[style][questionKey] ?? ['他笑了笑，没多说。'];
   return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -188,6 +282,8 @@ export interface Stall {
   teas: StallTea[];
   /** 该摊位今天摆出的茶具（与茶混摆；可能为空）。 */
   wares: TeaWare[];
+  /** 未解锁茶区的探索预告位：仅文案展示，无价格/品质，不进购买流程、不产生茶叶数据。 */
+  lockedHint?: { title: string; desc: string };
 }
 
 /** 确定性随机（mulberry32）：同一 day 永远得到同一批摊位/茶/价，刷新不乱跳。 */
@@ -222,24 +318,61 @@ function rollGrade(rng: () => number): Grade {
   return 'normal';
 }
 
+function regionSeed(region: string): number {
+  // 同一天不同茶区生成不同的摊位组合（避免两个集市长得一样）。
+  return region === 'hangzhou' ? 1013 : 0;
+}
+
+/** 当前茶区对应的「外地普通茶池」（即另一茶区的本地茶，剔除彩蛋）。 */
+function foreignTeasFor(region: string): string[] {
+  const other = region === 'hangzhou' ? 'wuyishan' : 'hangzhou';
+  return (LOCAL_TEAS[other] ?? []).filter((t) => !EGG_TEAS.has(t));
+}
+
 /**
- * 按 day 确定性生成今天的集市摊位。
- *  - 选 3~5 个摊主；每个摊主摆 1~3 种茶（从其茶池取）。
+ * 按 day + 当前茶区 确定性生成今天的集市摊位。
+ *  - 选 3~5 个摊主（取自当前茶区摊主池）；每个摊主摆 1~3 种茶。
+ *  - 本地茶 = 集市主体；跨茶区茶商有 ~40% 概率额外带 1 款外地普通茶（附轻量文案，彩蛋除外）。
+ *    外地茶仅在该茶区【已解锁】时才会真正摆出（flags 缺省视为未解锁——只影响预告位的显示，不影响本地茶）；
+ *    未解锁时同一位置变成「？？？茶区 · 尚未解锁」预告位，不出售、不入背包。
  *  - 价格 = basePrice[grade] ×(1+需求±5%)×(1+抖动±5%)，封顶 ±15%（不过度涨价）。
  *  - 今日行情只调「价格接受度/成交意愿」，绝不改品质。
  */
-export function generateStalls(day: number): Stall[] {
-  const rng = mulberry32(day * 6151 + 7);
+export function generateStalls(
+  day: number,
+  region: string = 'wuyishan',
+  flags?: Record<string, boolean | number>,
+): Stall[] {
+  const rng = mulberry32(day * 6151 + 7 + regionSeed(region));
   const m = todayMarket(day);
 
+  const ownerPool = STALL_OWNERS_BY_REGION[region] ?? STALL_OWNERS_BY_REGION.wuyishan;
   const ownerCount = 3 + Math.floor(rng() * 3); // 3..5
-  const owners = shuffle([...STALL_OWNERS], rng).slice(0, ownerCount);
+  const owners = shuffle([...ownerPool], rng).slice(0, ownerCount);
 
   return owners.map((npcId) => {
     const prof = OWNER_PROFILE[npcId];
     const npc = getNpc(npcId);
-    const nTeas = Math.min(prof.teas.length, 1 + Math.floor(rng() * 3)); // 1..3
-    const picked = shuffle(prof.teas, rng).slice(0, nTeas);
+    // 本地茶池（集市主体）
+    let pool = [...(LOCAL_TEAS[region] ?? [])];
+    // 跨茶区茶商：~40% 概率额外带 1 款外地普通茶（彩蛋不进；对方茶区未解锁则只出现预告位）
+    let foreignTea: string | null = null;
+    let lockedHint: Stall['lockedHint'];
+    if (CROSS_REGION_SELLERS.has(npcId) && rng() < 0.4) {
+      const foreign = foreignTeasFor(region);
+      if (foreign.length) {
+        const other = region === 'hangzhou' ? 'wuyishan' : 'hangzhou';
+        const picked = foreign[Math.floor(rng() * foreign.length)];
+        if (isTeaRegionUnlocked(other, flags)) {
+          foreignTea = picked;
+        } else {
+          lockedHint = { title: LOCKED_FOREIGN_TITLE, desc: LOCKED_FOREIGN_DESC };
+        }
+      }
+    }
+    const basePool = foreignTea ? [...pool, foreignTea] : pool;
+    const nTeas = Math.min(basePool.length, 1 + Math.floor(rng() * 3)); // 1..3
+    const picked = shuffle(basePool, rng).slice(0, nTeas);
 
     const teas: StallTea[] = picked.map((teaId) => {
       const grade = rollGrade(rng);
@@ -257,7 +390,8 @@ export function generateStalls(day: number): Stall[] {
       if ((grade === 'good' || grade === 'fine') && price <= Math.round(base * 0.97)) bargain = 'deal';
       else if (grade === 'normal' && price >= Math.round(base * 1.1)) bargain = 'overpriced';
 
-      return { teaId, grade, price, desc: pick(TEA_DESC[teaId][grade], rng), bargain };
+      const note = teaId === foreignTea ? FOREIGN_NOTE[region] : undefined;
+      return { teaId, grade, price, desc: pick(TEA_DESC[teaId][grade], rng), bargain, note };
     });
 
     // 茶具：每个摊位从自己的池子里挑 1~3 件（与茶混摆，不重复购买、不影响品质）。
@@ -268,6 +402,6 @@ export function generateStalls(day: number): Stall[] {
       .map((id) => getTeaWare(id))
       .filter((w): w is TeaWare => !!w);
 
-    return { npcId, name: npc.name, role: npc.role, greeting: prof.greeting, teas, wares };
+    return { npcId, name: npc.name, role: npc.role, greeting: prof.greeting, teas, wares, lockedHint };
   });
 }

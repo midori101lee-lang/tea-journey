@@ -215,12 +215,28 @@ function EncounterDialogue({
         <span className="dialog-npc-inline">{npcName}</span>
         <span className="dialog-role-inline">{getNpc(npcId).role}</span>
       </div>
-      {lines.map((ln, i) => (
-        <p className="dialog-line" key={i}>{ln.text}</p>
-      ))}
-      {activeFollowup && activeFollowup.lines.map((ln, i) => (
-        <p className="dialog-line dialog-line-follow" key={`f${i}`}>{ln.text}</p>
-      ))}
+      {/* 你一句我一句：每句按说话人分气泡（你=右对齐绿；NPC=左对齐；旁白=弱化），
+          key 触发淡入+上滑动画，制造对话感。偶遇整段事件一次展示（不打断逐句推进）。 */}
+      <div className="dialog-bubble-wrap">
+        {lines.map((ln, i) => {
+          const sp = ln.speaker;
+          const cls = sp === '你' ? 'dialog-bubble--mine' : sp ? 'dialog-bubble--npc' : 'dialog-bubble--narr';
+          return (
+            <div className={`dialog-bubble ${cls}`} key={i}>
+              <p className="dialog-line">{ln.text}</p>
+            </div>
+          );
+        })}
+        {activeFollowup && activeFollowup.lines.map((ln, i) => {
+          const sp = ln.speaker;
+          const cls = sp === '你' ? 'dialog-bubble--mine' : sp ? 'dialog-bubble--npc' : 'dialog-bubble--narr';
+          return (
+            <div className={`dialog-bubble ${cls} dialog-bubble--follow`} key={`f${i}`}>
+              <p className="dialog-line">{ln.text}</p>
+            </div>
+          );
+        })}
+      </div>
 
       {phase === 'lines' ? (
         pendingBuy ? (

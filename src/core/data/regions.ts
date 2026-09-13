@@ -36,7 +36,7 @@ export const REGIONS: Region[] = [
       { id: 'workshop', name: '制茶坊', npcIds: [], accent: '#cdb48a', blurb: '杭州做茶是另一条路：萎凋、揉捻、发酵、烘干。', scene: 'hz-workshop' },
       { id: 'teatable', name: '茶桌', npcIds: [], accent: '#c9b79c', blurb: '自己做的九曲红梅，在这儿泡一壶尝尝。', scene: 'hz-teatable' },
       { id: 'meijiawu', name: '梅家坞', npcIds: ['yinshi_laoren'], accent: '#a8c8b0', blurb: '梅家坞——龙井的核心山场，茶园里常有位爱吟诗的老人。', scene: 'meijiawu' },
-      { id: 'market', name: '茶集市', npcIds: ['xiaoman'], accent: '#c8b27a', blurb: '买卖茶与茶具的地方。（各地共用）', scene: 'market', locked: true },
+      { id: 'market', name: '茶集市', npcIds: ['xiaoman'], accent: '#c8b27a', blurb: '买卖茶与茶具的地方。', scene: 'market', locked: true },
     ],
   },
 ];

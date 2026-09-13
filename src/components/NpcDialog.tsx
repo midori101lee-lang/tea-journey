@@ -76,6 +76,8 @@ export default function NpcDialog({ scene, npcId, onDone }: Props) {
   const isLast = i + 1 >= steps.length;
   // 台词署名：默认显示该 NPC；若该句显式写了别的说话人（如玩家「你」、旁白），则按原样显示、且不挂 NPC 职务。
   const otherSpeaker = step.line.speaker && step.line.speaker !== npc.name ? step.line.speaker : null;
+  // 「我」的台词（数据里 speaker==='你'）用右对齐气泡区分，制造你一句我一句的对话感。
+  const isMine = step.line.speaker === '你';
 
   function applyEffects(d: Dialogue) {
     if (d.setsFlags) setFlags(d.setsFlags);
@@ -111,20 +113,25 @@ export default function NpcDialog({ scene, npcId, onDone }: Props) {
 
   return (
     <NpcStage sceneKey={sceneArt} npcId={step.dlg.npcId}>
-      <div className="dialog-meta">
-        <span className="dialog-npc-inline">{otherSpeaker ?? npc.name}</span>
-        {!otherSpeaker && <span className="dialog-role-inline">{npc.role}</span>}
-      </div>
-      <p className="dialog-line">{text}</p>
-      {finished ? null : choices.length > 0 ? (
-        <div className="dialog-choices">
-          {choices.map((c, k) => (
-            <button key={k} className="btn" onClick={advance}>{c}</button>
-          ))}
+      <div className="dialog-bubble-wrap">
+        <div className="dialog-meta">
+          <span className="dialog-npc-inline">{otherSpeaker ?? npc.name}</span>
+          {!otherSpeaker && <span className="dialog-role-inline">{npc.role}</span>}
         </div>
-      ) : (
-        <button className="btn btn-primary dialog-continue" onClick={advance}>继续</button>
-      )}
+        {/* key={i}：每推进一句重新挂载气泡，触发淡入+上滑动画 */}
+        <div className={`dialog-bubble ${isMine ? 'dialog-bubble--mine' : 'dialog-bubble--npc'}`} key={i}>
+          <p className="dialog-line">{text}</p>
+        </div>
+        {finished ? null : choices.length > 0 ? (
+          <div className="dialog-choices">
+            {choices.map((c, k) => (
+              <button key={k} className="btn" onClick={advance}>{c}</button>
+            ))}
+          </div>
+        ) : (
+          <button className="btn btn-primary dialog-continue" onClick={advance}>继续</button>
+        )}
+      </div>
     </NpcStage>
   );
 }

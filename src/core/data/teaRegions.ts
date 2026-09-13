@@ -72,3 +72,15 @@ export function teaWorldPages(): number {
 export function getTeaRegionCard(id: string): TeaRegionCard | undefined {
   return TEA_WORLD_REGIONS.find((r) => r.id === id);
 }
+
+/**
+ * 茶区解锁判定（与 TeaWorldView 卡片同一规则，抽出来供集市等玩法共用）：
+ * 有 unlockFlag 的茶区由 player.flags[unlockFlag] 决定；否则看静态 unlocked。
+ * 集市跨区流通依赖它：未解锁茶区的茶不实际出售（见 marketStalls.generateStalls）。
+ */
+export function isTeaRegionUnlocked(id: string, flags?: Record<string, boolean | number>): boolean {
+  const r = getTeaRegionCard(id);
+  if (!r) return false;
+  if (r.unlockFlag) return !!(flags && flags[r.unlockFlag]);
+  return r.unlocked;
+}

@@ -55,8 +55,8 @@ export default function ShapingStep({ params, difficulty, teaId = 'longjing', da
   const casual = difficulty === 'casual';
   const seed = `${teaId}-${day}`;
   const BEAT_MS = casual ? 1700 : 1400;      // 一手一个节拍周期
-  const GOOD_AT = 0.52;                       // 环收到这里以内 = 踩上节拍
-  const OK_AT = 0.24;                         // 再早点 = 勉强跟上
+  const GOOD_AT = 0.60;                       // 环收到这里以内 = 踩上节拍（收窄 → 上品需更准）
+  const OK_AT = 0.30;                         // 再早点 = 勉强跟上（窗口也收窄）
 
   const [round, setRound] = useState(0);
   const [stepIdx, setStepIdx] = useState(0);
@@ -130,7 +130,7 @@ export default function ShapingStep({ params, difficulty, teaId = 'longjing', da
     setFlash(grade);
     if (grade === 'broken') s.broken += 1;
     else {
-      s.credit += grade === 'good' ? 1 : grade === 'ok' ? 0.7 : grade === 'rushed' ? 0.35 : 0.2;
+      s.credit += grade === 'good' ? 1 : grade === 'ok' ? 0.55 : grade === 'rushed' ? 0.35 : 0.2;
       if (grade === 'good' || grade === 'ok') { setCorrectCount((c) => c + 1); }
     }
     setNote(

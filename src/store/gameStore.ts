@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Player, ProcessingResult, Difficulty, BrewOutcome, Grade, TeaStack } from '../core/types';
+import type { Player, ProcessingResult, Difficulty, BrewOutcome, Grade, TeaStack, FaultTag } from '../core/types';
 import { regionProficiency } from '../core/types';
 import { loadSave, persist, defaultPlayer, archiveCurrentSave, wipeActiveSave } from '../core/storage/storage';
 import { MARKET_REQUIRED_TEAS, regionLocationScene } from '../core/data/regions';
@@ -33,13 +33,14 @@ function pushStack(
   sourceNpc?: string,
   bargain?: 'deal' | 'overpriced',
   giftTag?: string,
+  fault?: FaultTag,
 ): TeaStack[] {
   // 旅途赠礼成独立一栈（key 带上 giftTag）：不与自制/购买的同品质茶合并，保留「我的旅途」身份。
   const key = giftTag ? `${teaId}:${grade}:${giftTag}` : `${teaId}:${grade}:${roastLevel}`;
   const next = [...inventory];
   const idx = next.findIndex((s) => s.id === key);
   if (idx >= 0) next[idx] = { ...next[idx], count: next[idx].count + count };
-  else   next.push({ id: key, teaId, grade, count, unitValue, roastLevel, firstMadeAt: new Date().toISOString(), source, sourceNpc, bargain, giftTag });
+  else   next.push({ id: key, teaId, grade, count, unitValue, roastLevel, firstMadeAt: new Date().toISOString(), source, sourceNpc, bargain, giftTag, fault });
   return next;
 }
 
@@ -166,7 +167,10 @@ interface GameStore {
   /** 茶席实饮：一次「真的喝了」扣 1 包（自饮/与 NPC 同饮各算一次）。进入/等待茶席不调本函数 → 不扣。 */
   drinkTea: (stackId: string) => void;
   setDialogues: (ids: string[]) => void;
-  sell: (stackId: string, price?: number) => void;
+  /** 卖茶：price 缺省用原价(unitValue)；count 缺省=整包卖出，传入则只卖 count 份（其余留在茶篓）。 */
+  sell: (stackId: string, price?: number, count?: number) => void;
+  /** 消费一条熟客回访待触发状态（回访对话播完后调用；未触发则保留，下次进茶集市再判定）。 */
+  consumeTeaFeedback: () => void;
   addCoins: (n: number) => void;
   /** 小红书分享奖励：用户完成一次分享发帖流程后调用（由 ShareSheet 的「记录这次分享」触发）。
    *  每日任意一种分享首次成功即发 +20（每日上限 20），防重复刷。
@@ -370,7 +374,12 @@ export const useGame = create<GameStore>((set, get) => ({
 
   finishMaking: (result, gain) => {
     const { player } = get();
-    const inventory = pushStack(player.inventory, result.teaId, result.grade, result.roastLevel, 1, result.value);
+    // 失败茶把「影响最大的失败原因」带上栈：熟客回访按「茶种+失败原因」生成抱怨文案（纯剧情，无数值）。
+    const inventory = pushStack(
+      player.inventory, result.teaId, result.grade, result.roastLevel, 1, result.value,
+      undefined, undefined, undefined, undefined,
+      result.grade === 'fail' ? result.worstFault : undefined,
+    );
     // 记录「曾经亲手制作过」——与背包无关，卖/喝掉仍保留，用于解锁茶集市
     const madeTeas = { ...player.madeTeas, [result.teaId]: true };
     const allThreeMade = MARKET_REQUIRED_TEAS.every((id) => madeTeas[id]);
@@ -493,17 +502,37 @@ export const useGame = create<GameStore>((set, get) => ({
   triggerEncounter: (r) => set({ activeEncounter: r }),
   clearEncounter: () => set({ activeEncounter: null }),
 
-  sell: (stackId, price) => {
+  sell: (stackId, price, count) => {
     const { player } = get();
     const stack = player.inventory.find((s) => s.id === stackId);
     if (!stack) return;
     // 小满可建议「加价」——price 由 MarketView 按品质计算传入；不传则用原价(unitValue)
-    const gained = (price ?? stack.unitValue) * stack.count;
+    const qty = count ?? stack.count; // 缺省整包；传入 count 则只卖指定份数
+    const gained = (price ?? stack.unitValue) * qty;
+    // 熟客回访待触发：卖出失败茶记「茶种+失败原因」、卖出上品茶记好评——一次只留一条，卖新的覆盖旧的。
+    // 纯剧情反馈标记，不是声望/满意度数值；经济规则零改动。
+    const teaFeedback: Player['teaFeedback'] =
+      stack.grade === 'fail' ? { teaId: stack.teaId, kind: 'fail', fault: stack.fault }
+        : stack.grade === 'fine' ? { teaId: stack.teaId, kind: 'fine' }
+          : player.teaFeedback ?? null;
     const next: Player = {
       ...player,
       coins: player.coins + gained,
-      inventory: player.inventory.filter((s) => s.id !== stackId),
+      teaFeedback,
+      inventory:
+        qty >= stack.count
+          ? player.inventory.filter((s) => s.id !== stackId)
+          : player.inventory.map((s) => (s.id === stackId ? { ...s, count: s.count - qty } : s)),
     };
+    persist(next);
+    set({ player: next });
+  },
+
+  /** 消费一条熟客回访（对话播完后清除；未被概率抽中则保留到下次进茶集市再判定）。 */
+  consumeTeaFeedback: () => {
+    const { player } = get();
+    if (!player.teaFeedback) return;
+    const next = { ...player, teaFeedback: null };
     persist(next);
     set({ player: next });
   },

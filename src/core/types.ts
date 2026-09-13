@@ -98,6 +98,8 @@ export interface PickingConfig {
   attemptCount: number;           // 本篓可采摘机会总数
   basketNeed: number;             // 采满几梢算「一篓」
   tolerance: number;              // 采茶容错：影响 good/normal/rough 判定
+  /** 采茶底部的知识小字（按茶种给：龙井=嫩采匀整 / 九曲红梅=红茶嫩采）；缺省回退 STEP_META 的岩茶版。 */
+  knowledgeNote?: string;
 }
 
 /** 本轮鲜叶品质（采茶产出，隐藏档，前台只给自然语言评价，不显示数值） */
@@ -107,6 +109,9 @@ export type BasketQuality = 'good' | 'normal' | 'rough';
 export interface TeaGameProfile {
   difficulty: 1 | 2 | 3;                 // 仅影响操作容错/摆动速度等，不代表现实中肉桂更难
   roastBias?: { center: number; width: number }; // 焙火绿区偏移（游戏内差异，非现实焙火标准）
+  /** 火性倾向（仅游戏参数）：aroma=求香（中火最佳）/ mellow=求醇（中足火皆宜）/ balanced=灵活（轻中足皆风格，重稳）。
+   *  只参与焙火结算的软性「火性与茶合」加分，不设硬门槛；文案由 core/making/roasting.ts 按茶种给。 */
+  roastStyle?: 'aroma' | 'mellow' | 'balanced';
   picking?: PickingConfig;               // 采茶（开面采）游戏化参数
   unlockCondition: UnlockCondition;
 }
@@ -151,6 +156,7 @@ export interface StepParams {
   greenTarget?: number;                  // 青气需降到该值以下
   // 做青
   idealShakeForce?: [number, number];    // 摇青力度理想区间（0..1）
+  idleLimit?: number;                    // 静置观察过久上限（秒）——水仙「从容走水」更宽
   weatherBias?: { force: number; roundsBias: number };  // 看天做青
   // 炒青（复用 v0.1 惯性控火）
   safeBand?: BandParams;
@@ -203,6 +209,7 @@ export interface StepOutcome {
   visualState: LeafVisualState;
   comment: string;       // 玩家可读的自然语言
   haste?: number;        // 焙火火气累积（仅内部评分用）
+  lean?: number;         // 焙火方向倾向：负=偏轻侧、正=偏足侧（仅内部评分/标签用，前台不显示）
   basketQuality?: BasketQuality; // 采茶步产出：供后续步骤轻量影响容错，前台不显示
 }
 
@@ -218,6 +225,8 @@ export interface ProcessingResult {
   value: number;         // 可售茶钱
   roastLevel: string;    // 轻火 / 中火 / 足火（游戏过程结果标签，不代表现实品质绝对判断）
   faults: FaultTag[];
+  /** 影响最大的失败类型（faults 里罚分最高的那条）——随失败茶入栈，供熟客回访按「茶种+失败原因」生成文案。 */
+  worstFault?: FaultTag;
   visuals: LeafVisualState;
   madeAt: string;
   /** 由买来的茶合成泡茶结果时携带：摊主 id 与捡漏/买贵标记；自制茶此字段为空。仅用于周伯品茶反馈，不进茶钱/评分。 */
@@ -246,6 +255,8 @@ export interface TeaStack {
    *  供未来 NPC 识别「玩家带着上一座茶山的茶」；同时是礼物茶「不进入普通出售」的判据。
    *  只是库存上的一个轻量标记，不新建来源历史系统。 */
   giftTag?: string;
+  /** 自制失败茶携带的失败类型（仅 grade='fail' 的栈有），供熟客回访文案按「茶种+失败原因」生成；不参与任何数值。 */
+  fault?: FaultTag;
 }
 
 export interface Player {
@@ -265,6 +276,8 @@ export interface Player {
   /** 当天已主动去山路上逛逛的次数（每日最多 3 次；回茶馆歇一晚后清零）。 */
   mountainVisitsToday: number;
   inventory: TeaStack[];
+  /** 熟客回访待触发状态（最多一条；卖新的失败/上品茶覆盖旧记录）。轻量剧情反馈用，不是声望/满意度数值。 */
+  teaFeedback?: { teaId: string; kind: 'fail' | 'fine'; fault?: string } | null;
   flags: Record<string, boolean | number>;
   comicSeen: string[];
   clues: string[];

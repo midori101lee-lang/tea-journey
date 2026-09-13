@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGame } from '../../store/gameStore';
 import NpcDialog from '../../components/NpcDialog';
 import BackButton from '../../components/BackButton';
@@ -10,6 +10,10 @@ import { GRADE_LABEL, type Grade, type TeaStack } from '../../core/types';
 import { RARITY_LABEL, type TeaWare } from '../../core/data/teaWares';
 import { evaluateMarket, suggestedPrice, todayMarket, marketCustomers, type MarketEval, type MarketCustomer } from './marketEval';
 import { generateStalls, lookAtTea, askSeller, ASK_QUESTIONS, type Stall, type StallTea } from './marketStalls';
+import { buildTeaFeedback, type FeedbackLine } from '../../core/data/marketFeedback';
+
+/** 熟客回访触发概率：每次进茶集市对「待回访」判定一次；未触发保留，触发播完即清除。 */
+const VISIT_CHANCE = 0.3;
 
 /** 主线里认识的人 = 熟人（来摊上会多捧场一点，封顶，不无限）。 */
 const KNOWN = new Set(['laochen', 'axiu', 'yanbo', 'zhoubo', 'linggu']);
@@ -21,6 +25,7 @@ interface ResultLine {
   price: number;
   bought: boolean;
   willing?: number;
+  qty?: number;
   kind: 'known' | 'old' | 'regular' | 'passer';
 }
 
@@ -34,9 +39,11 @@ type Mode = 'home' | 'sell' | 'browse' | 'stall';
  *  - 摊主(主动点买) 与 普通偶遇NPC(随机聊) 身份区分、共用立绘，不混系统。
  */
 export default function MarketView() {
-  const { player, sell, setFlag, buyTea, buyTeaWare, activeEncounter } = useGame();
+  const { player, sell, setFlag, buyTea, buyTeaWare, activeEncounter, consumeTeaFeedback } = useGame();
   const [talked, setTalked] = useState(false);
   const [mode, setMode] = useState<Mode>('home');
+  // 熟客回访（轻量剧情反馈）：进茶集市时对「待回访」判定一次概率；抽中则在本面板播放，播完清除。
+  const [visitLines, setVisitLines] = useState<FeedbackLine[] | null>(null);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [results, setResults] = useState<ResultLine[] | null>(null);
   const [stalls, setStalls] = useState<Stall[]>([]);
@@ -49,8 +56,32 @@ export default function MarketView() {
   const [view, setView] = useState<'list' | 'look' | 'ask'>('list');
   const [activeTea, setActiveTea] = useState<StallTea | null>(null);
   const [askAnswer, setAskAnswer] = useState<string | null>(null);
+  // 茶集市卖茶选择：stackId -> 出售份数（0/缺省=不卖）。支持单卖与勾选批量卖。
+  const [sellQty, setSellQty] = useState<Record<string, number>>({});
   // 轻量记忆：玩家之前从这位摊主买过茶（仅 flag，不建成好感/信誉数值）。
   const boughtBefore = (s: Stall) => !!player.flags['bought_from_' + s.npcId];
+
+  // 任务⑧：在武夷山茶集市买下「景区王霸茶」后，偶遇结束回到市场时，让小满当场起疑并建议找周伯。
+  // 仅触发一次（wangba_xiaoman_done 落盘后不再重播）；派生条件 xiaoman_wangba_suspect 已限定武夷山茶区。
+  const prevEnc = useRef(activeEncounter);
+  useEffect(() => {
+    const wasActive = prevEnc.current;
+    prevEnc.current = activeEncounter;
+    if (wasActive && !activeEncounter) {
+      const p = useGame.getState().player;
+      if (p.flags['bought_wangba'] && !p.flags['wangba_xiaoman_done']) {
+        setTalked(false); // 重新挂载小满对话 → conditional xiaoman_wangba_suspect 触发
+      }
+    }
+  }, [activeEncounter]);
+
+  // 熟客回访：每次挂载（= 进入茶集市）对「待回访」判定一次概率；抽中则生成对白，播完由玩家清除。
+  // 没抽中什么都不显示，待回访保留到下次；同一份反馈最多播一次。
+  useEffect(() => {
+    const fb = useGame.getState().player.teaFeedback;
+    if (fb && Math.random() < VISIT_CHANCE) setVisitLines(buildTeaFeedback(fb));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!talked) {
     return <NpcDialog key="market-xiaoman" scene="market" npcId="xiaoman" onDone={() => setTalked(true)} />;
@@ -72,14 +103,30 @@ export default function MarketView() {
     if (!base) return;
     setPrices((p) => ({ ...p, [id]: suggestedPrice(base) }));
   };
+  // 勾选/取消：勾选默认卖 1 份（步进器可加到整包）。
+  const toggleSell = (id: string) => {
+    setSellQty((q) => {
+      if ((q[id] ?? 0) > 0) { const n = { ...q }; delete n[id]; return n; }
+      return { ...q, [id]: 1 };
+    });
+  };
+  const stepQty = (id: string, max: number, delta: number) => {
+    setSellQty((q) => {
+      const cur = q[id] ?? 0;
+      if (cur <= 0) return q;
+      return { ...q, [id]: Math.max(1, Math.min(max, cur + delta)) };
+    });
+  };
   const openStall = () => {
-    if (stacks.length === 0) { setResults([]); return; }
-    const customers = marketCustomers(player, player.day, stacks);
+    const selected = stacks.filter((s) => (sellQty[s.id] ?? 0) > 0);
+    if (selected.length === 0) { setResults([]); return; }
+    const customers = marketCustomers(player, player.day, selected);
     const log: ResultLine[] = [];
-    customers.forEach((c: MarketCustomer) => {
-      const stack = stacks.find((s) => s.id === c.stackId);
-      if (!stack) return;
+    selected.forEach((stack) => {
+      const c = customers.find((x) => x.stackId === stack.id);
+      if (!c) return; // 今天没轮到这位顾客（每日顾客数有限，与原逻辑一致）
       const price = priceOf(stack);
+      const qty = Math.min(sellQty[stack.id] ?? stack.count, stack.count); // 防御：不超过手上份数
       const bought = price <= c.willing;
       const kind: ResultLine['kind'] =
         player.flags['stall_regular_' + c.npcId]
@@ -90,15 +137,25 @@ export default function MarketView() {
               ? 'regular'
               : 'passer';
       if (bought) {
-        sell(c.stackId, price);
+        sell(c.stackId, price, qty);
         if (kind !== 'passer') setFlag('stall_regular_' + c.npcId, 1);
-        log.push({ name: c.name, tea: getTea(c.teaId).name, grade: stack.grade, price, bought: true, kind });
+        log.push({ name: c.name, tea: getTea(c.teaId).name, grade: stack.grade, price: price * qty, qty, bought: true, kind });
       } else {
         log.push({ name: c.name, tea: getTea(c.teaId).name, grade: stack.grade, price, bought: false, willing: c.willing, kind });
       }
     });
+    setSellQty({}); // 收摊后清空选择，避免与卖出后的新库存错位
     setResults(log);
   };
+  // 已选摘要：款数 + 预计可得茶钱（定价×份数）。
+  const sellSummary = stacks.reduce(
+    (acc, s) => {
+      const q = sellQty[s.id] ?? 0;
+      if (q > 0) { acc.count += 1; acc.coins += priceOf(s) * q; }
+      return acc;
+    },
+    { count: 0, coins: 0 },
+  );
   const tagOf = (ev: MarketEval): { cls: string; text: string } => {
     if (ev.advice === 'raise') return { cls: 'adv-raise', text: `小满：「${ev.adviceLine}」` };
     if (ev.advice === 'avoid') return { cls: 'adv-avoid', text: `小满：「${ev.adviceLine}」` };
@@ -107,7 +164,8 @@ export default function MarketView() {
 
   // ───── 逛摊 / 买茶（V0.3） ─────
   const enterBrowse = () => {
-    setStalls(generateStalls(player.day));
+    // 传入 flags：未解锁茶区的茶不实际摆出，仅出现「尚未解锁」预告位（跨区流通核心规则）。
+    setStalls(generateStalls(player.day, player.currentRegion, player.flags));
     setActiveStall(null);
     setBought(null);
     setPendingBuy(null);
@@ -144,7 +202,24 @@ export default function MarketView() {
     <div className="scene">
       <BackButton />
       <NpcStage sceneKey="market" npcId="xiaoman" showFigure={mode === 'home' || mode === 'sell'}>
-        {!activeEncounter && mode === 'home' && (
+        {!activeEncounter && mode === 'home' && (visitLines ? (
+          <div className="market-home">
+            {/* 熟客回访：失败茶抱怨 / 上品茶好评（按茶种+失败原因生成）。播完清除待回访状态。 */}
+            <div className="dialog-meta">
+              <span className="dialog-npc-inline">熟客回访</span>
+            </div>
+            <div className="dialog-bubble-wrap">
+              {visitLines.map((l, i) => (
+                <div className="dialog-bubble dialog-bubble--npc" key={i}>
+                  <p className="dialog-line">{l.speaker}：「{l.text}」</p>
+                </div>
+              ))}
+            </div>
+            <div className="dialog-choices">
+              <button className="btn btn-primary" onClick={() => { consumeTeaFeedback(); setVisitLines(null); }}>继续</button>
+            </div>
+          </div>
+        ) : (
           <div className="market-home">
             <p className="dialog-line">小满：「今天人不少。你是来卖茶，还是想去别人摊上看看？」</p>
             <div className="dialog-choices">
@@ -155,7 +230,7 @@ export default function MarketView() {
               <span className="hint">当前茶钱：{player.coins} 文　·　第 {player.day} 天</span>
             </div>
           </div>
-        )}
+        ))}
 
         {!activeEncounter && mode === 'sell' && (
           <>
@@ -170,15 +245,19 @@ export default function MarketView() {
             {stacks.length === 0 ? (
               <p className="hint">背包里还没有自己做的茶。先去采茶、做一锅吧。</p>
             ) : !results ? (
-              <div className="market-trade">
-                {stacks.map((s) => {
+                <div className="market-trade">
+                  {stacks.map((s) => {
                   const ev = evaluateMarket(s);
                   const tag = tagOf(ev);
                   const teaName = getTea(s.teaId).name;
                   const price = priceOf(s);
+                  const picked = (sellQty[s.id] ?? 0) > 0;
                   return (
                     <div className="trade-card" key={s.id}>
-                      <div className="trade-head">{teaName} · {GRADE_LABEL[s.grade]} ×{s.count}（{s.roastLevel}火）</div>
+                      <label className="trade-pick">
+                        <input type="checkbox" checked={picked} onChange={() => toggleSell(s.id)} />
+                        <span className="trade-head">{teaName} · {GRADE_LABEL[s.grade]} ×{s.count}（{s.roastLevel}火）</span>
+                      </label>
                       <div className={`price-advice ${tag.cls}`}>
                         <p className="dialog-line">{tag.text}</p>
                         <div className="price-row">
@@ -188,11 +267,22 @@ export default function MarketView() {
                           <button className="price-step" onClick={() => setPrice(s.id, 2)} aria-label="涨价">＋</button>
                           <button className="btn btn-ghost price-sug" onClick={() => useSuggested(s.id)}>听小满的</button>
                         </div>
+                        {picked && (
+                          <div className="sell-qty">
+                            <span className="hint">出售数量</span>
+                            <button className="price-step" onClick={() => stepQty(s.id, s.count, -1)} disabled={sellQty[s.id] <= 1} aria-label="减少">−</button>
+                            <span className="price-now">{sellQty[s.id]} / {s.count}</span>
+                            <button className="price-step" onClick={() => stepQty(s.id, s.count, 1)} disabled={sellQty[s.id] >= s.count} aria-label="增加">＋</button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
                 })}
-                <button className="btn btn-primary" style={{ marginTop: 8 }} onClick={openStall}>🔔 开门迎客</button>
+                {sellSummary.count > 0 && (
+                  <p className="hint sell-summary">已选 {sellSummary.count} 款 · 预计可卖 {sellSummary.coins} 文</p>
+                )}
+                <button className="btn btn-primary" style={{ marginTop: 8 }} onClick={openStall} disabled={sellSummary.count === 0}>🔔 开门迎客</button>
               </div>
             ) : (
               <div className="market-result">
@@ -205,11 +295,14 @@ export default function MarketView() {
                     {r.kind === 'regular' && '（回头客）'}
                     {r.name}
                     {r.bought
-                      ? ` 买了你的 ${r.tea}（${GRADE_LABEL[r.grade as keyof typeof GRADE_LABEL] ?? r.grade}），付了 ${r.price} 文。`
+                      ? ` 买了你的 ${r.tea}（${GRADE_LABEL[r.grade as keyof typeof GRADE_LABEL] ?? r.grade}）${r.qty && r.qty > 1 ? ` ×${r.qty}` : ''}，付了 ${r.price} 文。`
                       : ` 觉得 ${r.price} 文有点贵，摇摇头走了。（他最多出 ${r.willing} 文）`}
                   </p>
                 ))}
-                <button className="btn" style={{ marginTop: 8 }} onClick={() => setResults(null)}>收摊，再想想定价</button>
+                <div className="dialog-choices" style={{ marginTop: 8 }}>
+                  <button className="btn" onClick={() => setResults(null)}>收摊，再想想定价</button>
+                  <button className="btn btn-primary" onClick={() => { setResults(null); setMode('home'); }}>回到茶集市</button>
+                </div>
               </div>
             )}
           </>
@@ -273,6 +366,7 @@ export default function MarketView() {
                 <p className="dialog-line">（你凑近看了看）</p>
                 <p className="note">{lookAtTea(activeTea.teaId, activeTea.grade)}</p>
                 <p className="dialog-line">{activeStall.name}：「{activeTea.desc}」</p>
+                {activeTea.note && <p className="note stall-tea-note">{activeTea.note}</p>}
                 <div className="dialog-choices">
                   <button className="btn" onClick={() => { setView('list'); setActiveTea(null); }}>返回</button>
                 </div>
@@ -292,7 +386,7 @@ export default function MarketView() {
                   <>
                     <p className="hint">你想问：</p>
                     {ASK_QUESTIONS.map((q) => (
-                      <button className="btn ask-q" key={q.key} onClick={() => setAskAnswer(askSeller(activeStall.npcId, q.key))}>{q.label}</button>
+                      <button className="btn ask-q" key={q.key} onClick={() => setAskAnswer(askSeller(activeStall.npcId, q.key, player.currentRegion))}>{q.label}</button>
                     ))}
                     <button className="btn" onClick={() => { setView('list'); setActiveTea(null); }}>算了</button>
                   </>
@@ -300,12 +394,19 @@ export default function MarketView() {
               </div>
             ) : (
               <>
+                {activeStall.lockedHint && (
+                  <div className="stall-tea stall-tea--locked">
+                    <div className="stall-tea-head">{activeStall.lockedHint.title}</div>
+                    <div className="stall-tea-desc">{activeStall.lockedHint.desc}</div>
+                  </div>
+                )}
                 {activeStall.teas.map((t) => {
                   const afford = player.coins >= t.price;
                   return (
                     <div className="stall-tea" key={t.teaId + t.grade}>
                       <div className="stall-tea-head">{getTea(t.teaId).name} · {GRADE_LABEL[t.grade]}</div>
                       <div className="stall-tea-desc">“{t.desc}”</div>
+                      {t.note && <div className="stall-tea-note">{t.note}</div>}
                       <div className="stall-tea-actions">
                         <button className="btn btn-ghost" onClick={() => { setActiveTea(t); setView('look'); }}>看看</button>
                         <button className="btn btn-ghost" onClick={() => { setActiveTea(t); setAskAnswer(null); setView('ask'); }}>问问</button>

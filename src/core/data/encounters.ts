@@ -19,6 +19,13 @@ import type { EncounterNpc } from '../types';
 //   山路 mountain → 三轮车 / 年轻茶农 / 年轻男旅客 / 林姑娘 / 路边饮茶叔 / 请喝茶大姐 / 采茶阿姨 / 神秘茶人(极低)
 //   茶馆 teahouse → 林姑娘 / 路边饮茶叔 / 请喝茶大姐 / 年轻男旅客 / 茶商老贾
 //   集市 market   → 采茶阿姨 / 年轻茶农 / 卖茶大叔 / 茶商老贾 / 三轮车 / 林姑娘 / 路边饮茶叔 / 请喝茶大姐 / 年轻男旅客 / 神秘茶人(极低)
+//
+// 杭州偶遇池（2026-09-13 用户定稿）：杭州偶遇仅发生在共用 market 场景（hz-* 场景不接偶遇层），
+//   阵容 = 本文件 regions 含 'hangzhou' 且 scenes.market>0 的 NPC：
+//   老贾(跨区售武夷山普通茶) / 牛姐(乌牛早彩蛋, regions:['hangzhou']) / 林姑娘 / 年轻男旅客 /
+//   请喝茶大姐 / 年轻茶农 / 卖茶大叔 / 路边饮茶叔 / 神秘茶人(极低, 权重与武夷山一致)。
+//   复用 NPC 的 market 事件用 linesByRegion.hangzhou 说杭州的话（含「我的回应」）；
+//   涉及赠/售茶的事件按茶区一分为二（requires 锁 currentRegion），杭州侧只给杭州本地茶。
 // ─────────────────────────────────────────────────────────────
 
 export const ENCOUNTERS: EncounterNpc[] = [
@@ -27,6 +34,7 @@ export const ENCOUNTERS: EncounterNpc[] = [
     id: 'tricycle_farmer',
     name: '三轮车茶农',
     role: '山路上的茶农',
+    regions: ['wuyishan'], // 武夷山本地 NPC：仅武夷山出现，不在杭州卖外地茶
     scenes: { mountain: 40, garden: 25, market: 30 },
     events: [
       {
@@ -48,9 +56,10 @@ export const ENCOUNTERS: EncounterNpc[] = [
         weight: 16,
         lines: [
           { speaker: '三轮车茶农', text: '这山我开了一辈子三轮。' },
+          { speaker: '你', text: '「弯这么多，您都不带慌的？」' },
           { speaker: '三轮车茶农', text: '岩茶这东西，急不得，跟开车一个理。' },
         ],
-        outcome: { toast: '（你听他唠了两句山路上的闲话。）' },
+        outcome: { toast: '（你听他唠了两句山路上的闲话。）' }
       },
       {
         id: 'tricycle_chat_garden',
@@ -113,6 +122,9 @@ export const ENCOUNTERS: EncounterNpc[] = [
     id: 'laojia',
     name: '茶商老贾',
     role: '游动茶商',
+    // 老贾是「跨茶区茶商」：可在武夷山 / 杭州两地出现（偶遇层 + 集市摊位）。
+    // 景区王霸茶（wangba）仍严格仅武夷山可获得——靠 laojia_wangba 事件的 requires 锁当前茶区，
+    // 而非锁 NPC：老贾本人在杭州只卖武夷山普通茶（外地茶），绝不带王霸茶出山。
     scenes: { market: 60, teahouse: 18 },
     events: [
       {
@@ -193,7 +205,14 @@ export const ENCOUNTERS: EncounterNpc[] = [
           { speaker: '老贾', text: '老陈这的茶我熟，常来坐。' },
           { speaker: '老贾', text: '今年的青叶厚实，做出来的茶该不差。' },
         ],
-        outcome: { toast: '（他跟你说起山里的收成，没推销什么。）' },
+        // 杭州茶馆是玲姨的场子，话术随茶区切换，避免「老陈」在杭州串台。
+        linesByRegion: {
+          hangzhou: [
+            { speaker: '老贾', text: '玲姨这的茶我熟，常来坐。' },
+            { speaker: '老贾', text: '杭州的春茶鲜，做出来的茶该不差。' },
+          ],
+        },
+        outcome: { toast: '（他跟你说起茶山的收成，没推销什么。）' },
       },
       {
         id: 'laojia_wangba',
@@ -201,7 +220,9 @@ export const ENCOUNTERS: EncounterNpc[] = [
         weight: 45,
         // 当日冷却（与神秘茶人同思路，由 EncounterLayer 在 roll 时写 wangba_seen_{day}）：
         // 同日不刷两次；隔天可再遇；拒绝也不再永久消失（无 wangba_done 硬锁）。
-        requires: (p) => !p.flags['wangba_seen_' + p.day],
+        // 彩蛋隔离：王霸茶仅武夷山。老贾虽可跨区出现，此事件额外锁 currentRegion === 'wuyishan'，
+        // 故王霸茶绝不进入杭州（即便老贾在杭州摆摊，也只卖武夷山普通茶）。
+        requires: (p) => !p.flags['wangba_seen_' + p.day] && (p.currentRegion ?? 'wuyishan') === 'wuyishan',
         lines: [
           { speaker: '老贾', text: '来来来，走累了吧？来喝一口，不要钱。' },
           { speaker: '老贾', text: '自己家做的，尝尝——' },
@@ -349,6 +370,7 @@ export const ENCOUNTERS: EncounterNpc[] = [
     id: 'caicha_ayi',
     name: '采茶阿姨',
     role: '茶园里的采茶人',
+    regions: ['wuyishan'], // 武夷山本地 NPC：仅武夷山出现，不在杭州卖外地茶
     scenes: { garden: 40, mountain: 22, market: 25 },
     events: [
       {
@@ -407,10 +429,12 @@ export const ENCOUNTERS: EncounterNpc[] = [
   },
 
   // ── 年轻茶农：山里自家茶农，学制茶、上下山运茶 ──
+  // 跨茶区复用：在杭州聊梅家坞的春茶与采茶（market 事件台词杭州化；赠茶事件仅武夷山场景可触发）。
   {
     id: 'young_farmer',
     name: '年轻茶农',
     role: '山里自家茶农',
+    regions: ['wuyishan', 'hangzhou'], // 跨茶区漫游；台词按茶区区分
     scenes: { garden: 38, mountain: 24, market: 25 },
     events: [
       {
@@ -429,9 +453,11 @@ export const ENCOUNTERS: EncounterNpc[] = [
         weight: 18,
         lines: [
           { speaker: '年轻茶农', text: '刚把茶青挑下山，腿还有点抖。' },
+          { speaker: '你', text: '「挑这么沉，一天得几趟？」' },
+          { speaker: '年轻茶农', text: '「三四趟吧。鲜叶耽误不得，累点也值。」' },
           { speaker: '年轻茶农', text: '这活儿，真得年轻人扛。' },
         ],
-        outcome: { toast: '（他拍拍裤腿，朝山下走了。）' },
+        outcome: { toast: '（他拍拍裤腿，朝山下走了。）' }
       },
       {
         id: 'youngfarmer_market',
@@ -441,6 +467,15 @@ export const ENCOUNTERS: EncounterNpc[] = [
           { speaker: '年轻茶农', text: '头回帮家里摆摊，手都不知道往哪放。' },
           { speaker: '年轻茶农', text: '你帮我看看这标价行不？' },
         ],
+        linesByRegion: {
+          hangzhou: [
+            { speaker: '年轻茶农', text: '头回帮家里在梅家坞口摆摊，手都不知道往哪放。' },
+            { speaker: '你', text: '「今年的龙井收成怎么样？」' },
+            { speaker: '年轻茶农', text: '「明前那批最好，就是采得人手疼——一芽一叶，急不来。」' },
+            { speaker: '你', text: '「原来龙井采摘这么讲究。」' },
+            { speaker: '年轻茶农', text: '「那可不。你帮我看看这标价写得行不？」' },
+          ],
+        },
         outcome: { toast: '（你随便瞅了两眼，他挠挠头。）' },
       },
       {
@@ -469,10 +504,14 @@ export const ENCOUNTERS: EncounterNpc[] = [
   },
 
   // ── 请喝茶大姐：山下好客的大姐，走到哪都张罗人喝口茶 ──
+  // 跨茶区复用（身份/美术不变）：在杭州说杭州的话（linesByRegion），赠茶只赠杭州本地茶。
+  // 注意：杭州偶遇实际只在共用 market 场景触发（hz-* 场景不接偶遇层），
+  // 非 market 事件无需杭州台词——若未来给杭州场景接偶遇层，需先补齐各事件 linesByRegion。
   {
     id: 'tea_dajie',
     name: '请喝茶大姐',
     role: '山下好客的大姐',
+    regions: ['wuyishan', 'hangzhou'], // 跨茶区漫游；台词与赠茶按茶区区分
     scenes: { garden: 28, mountain: 26, teahouse: 24, market: 22 },
     events: [
       {
@@ -491,6 +530,8 @@ export const ENCOUNTERS: EncounterNpc[] = [
         weight: 20,
         lines: [
           { speaker: '请喝茶大姐', text: '山路旁歇脚，保温壶里给你留了。' },
+          { speaker: '你', text: '「大姐您天天都来这守着？」' },
+          { speaker: '请喝茶大姐', text: '「可不是。过路人喝口热的，我心里也热乎。」' },
           { speaker: '请喝茶大姐', text: '喝完才有力气往上爬。' },
         ],
         outcome: { toast: '（你接过大姐递来的茶，歇了一程。）' },
@@ -513,12 +554,22 @@ export const ENCOUNTERS: EncounterNpc[] = [
           { speaker: '请喝茶大姐', text: '我摊后头支了个小茶摊。' },
           { speaker: '请喝茶大姐', text: '逛累了就过来，不要钱。' },
         ],
+        linesByRegion: {
+          hangzhou: [
+            { speaker: '请喝茶大姐', text: '我这小茶摊就摆在梅家坞路口，自家炒的龙井管够。' },
+            { speaker: '你', text: '「大姐，你们这儿家家都会炒茶吗？」' },
+            { speaker: '请喝茶大姐', text: '「那可不。清明前后忙起来，饭都是端到垄边吃的。」' },
+            { speaker: '请喝茶大姐', text: '逛累了就过来坐，不要钱。' },
+          ],
+        },
         outcome: { toast: '（她朝你挥挥手，让你随便坐。）' },
       },
       {
+        // 赠茶分茶区：武夷山给肉桂（本地茶），杭州给九曲红梅（本地茶），权重一致。
         id: 'dajie_offer',
         scenes: ['garden', 'mountain', 'teahouse', 'market'],
         weight: 16,
+        requires: (p) => (p.currentRegion ?? 'wuyishan') === 'wuyishan',
         lines: [
           { speaker: '请喝茶大姐', text: '拿着拿着，一小包自家茶。' },
           { speaker: '请喝茶大姐', text: '带回去泡，比啥都强。' },
@@ -526,6 +577,22 @@ export const ENCOUNTERS: EncounterNpc[] = [
         outcome: {
           giveTea: { teaId: 'rougui', grade: 'normal', roastLevel: '足火', count: 1, unitValue: 15 },
           toast: '获得一小包茶（肉桂 · 普通）。',
+        },
+      },
+      {
+        // 杭州对位事件：大姐在杭州送的自然是杭州茶（九曲红梅——家常待客那口甜）。
+        id: 'dajie_offer_hz',
+        scenes: ['garden', 'mountain', 'teahouse', 'market'],
+        weight: 16,
+        requires: (p) => p.currentRegion === 'hangzhou',
+        lines: [
+          { speaker: '请喝茶大姐', text: '拿着拿着，一小包自家烘的九曲红梅。' },
+          { speaker: '你', text: '「这怎么好意思。」' },
+          { speaker: '请喝茶大姐', text: '「杭州人待客就兴这一口，甜丝丝的，回去泡泡看。」' },
+        ],
+        outcome: {
+          giveTea: { teaId: 'jiuquhongmei', grade: 'normal', roastLevel: '到位', count: 1, unitValue: 16 },
+          toast: '获得一小包茶（九曲红梅 · 普通）。',
         },
       },
       {
@@ -541,10 +608,12 @@ export const ENCOUNTERS: EncounterNpc[] = [
   },
 
   // ── 路边饮茶叔：路边歇脚的老茶客，自带茶壶，慢悠悠 ──
+  // 跨茶区复用：在杭州聊龙井豆香、玻璃杯泡茶这些杭州人的日常（market 可触发的聊天事件杭州化）。
   {
     id: 'roadside_uncle',
     name: '路边饮茶叔',
     role: '路边歇脚的老茶客',
+    regions: ['wuyishan', 'hangzhou'], // 跨茶区漫游；台词按茶区区分
     scenes: { mountain: 38, teahouse: 26, market: 22 },
     events: [
       {
@@ -553,6 +622,8 @@ export const ENCOUNTERS: EncounterNpc[] = [
         weight: 26,
         lines: [
           { speaker: '路边饮茶叔', text: '走累了？陪我在这石头上坐会儿。' },
+          { speaker: '你', text: '「叔，您这壶里泡的什么茶？」' },
+          { speaker: '路边饮茶叔', text: '「肉桂。山里的水软，泡出来不锁喉。」' },
           { speaker: '路边饮茶叔', text: '我自带了茶，山路边喝最香。' },
         ],
         outcome: { toast: '（他抿一口，眯眼看了看山。）' },
@@ -575,6 +646,14 @@ export const ENCOUNTERS: EncounterNpc[] = [
           { speaker: '路边饮茶叔', text: '集市边看热闹，比挤里头舒服。' },
           { speaker: '路边饮茶叔', text: '茶样看多了，不如喝一口。' },
         ],
+        linesByRegion: {
+          hangzhou: [
+            { speaker: '路边饮茶叔', text: '茶市边上占个座，看人来人往买龙井。' },
+            { speaker: '你', text: '「叔，您壶里泡的是龙井吗？」' },
+            { speaker: '路边饮茶叔', text: '「嗯，豆香足的才对味。杭州人喝茶，一只玻璃杯就够了。」' },
+            { speaker: '路边饮茶叔', text: '茶样看多了，不如喝一口。' },
+          ],
+        },
         outcome: { toast: '（他抱着茶壶，乐呵呵看人讨价还价。）' },
       },
       {
@@ -585,6 +664,13 @@ export const ENCOUNTERS: EncounterNpc[] = [
           { speaker: '路边饮茶叔', text: '好茶不在贵，在自己顺口。' },
           { speaker: '路边饮茶叔', text: '我喝了一辈子，就认这个理。' },
         ],
+        linesByRegion: {
+          hangzhou: [
+            { speaker: '路边饮茶叔', text: '龙井要喝个鲜，春茶放久了就钝了。' },
+            { speaker: '你', text: '「那九曲红梅呢？也是杭州的茶吧。」' },
+            { speaker: '路边饮茶叔', text: '「对，知道的人少些。甜口，慢悠悠的，跟我这壶挺配。」' },
+          ],
+        },
         outcome: { toast: '（一段不端着的喝茶门道。）' },
       },
       {
@@ -612,6 +698,8 @@ export const ENCOUNTERS: EncounterNpc[] = [
         weight: 24,
         lines: [
           { speaker: '年轻男旅客', text: '我也一个人逛山路来的。' },
+          { speaker: '你', text: '「你从哪边上来的？」' },
+          { speaker: '年轻男旅客', text: '「后山步道。人少，就是坡陡点。」' },
           { speaker: '年轻男旅客', text: '这云雾，比照片上带劲。' },
         ],
         outcome: { toast: '（你们在山路并肩走了一程。）' },
@@ -659,16 +747,19 @@ export const ENCOUNTERS: EncounterNpc[] = [
   },
 
   // ── 卖茶大叔：茶集市摊主，明码标价、实在 ──
+  // 跨茶区复用：在杭州只卖杭州本地茶（龙井/九曲红梅），两个售茶事件按茶区一分为二，权重不变。
   {
     id: 'maicha_dashu',
     name: '卖茶大叔',
     role: '茶集市摊主',
+    regions: ['wuyishan', 'hangzhou'], // 跨茶区漫游；卖什么茶按茶区区分
     scenes: { market: 42 },
     events: [
       {
         id: 'dashu_fair',
         scenes: ['market'],
         weight: 30,
+        requires: (p) => (p.currentRegion ?? 'wuyishan') === 'wuyishan',
         lines: [
           { speaker: '卖茶大叔', text: '看看茶？明码标价，不玩虚的。' },
           { speaker: '卖茶大叔', text: '这包水仙，自家山上出的。' },
@@ -686,6 +777,28 @@ export const ENCOUNTERS: EncounterNpc[] = [
         ],
       },
       {
+        // 杭州对位事件：本地卖龙井（梅家坞收的青，一口豆香）。
+        id: 'dashu_fair_hz',
+        scenes: ['market'],
+        weight: 30,
+        requires: (p) => p.currentRegion === 'hangzhou',
+        lines: [
+          { speaker: '卖茶大叔', text: '看看茶？明码标价，不玩虚的。' },
+          { speaker: '卖茶大叔', text: '这包龙井，梅家坞收的青，炒得干净。' },
+        ],
+        choices: [
+          {
+            label: '买一包',
+            outcome: {
+              addCoins: -8,
+              giveTea: { teaId: 'longjing', grade: 'normal', roastLevel: '刚好', count: 1, unitValue: 13 },
+              toast: '称了包，钱货两清。',
+            },
+          },
+          { label: '再看看', outcome: { toast: '（他也不急，让你慢慢挑。）' } },
+        ],
+      },
+      {
         id: 'dashu_chat',
         scenes: ['market'],
         weight: 26,
@@ -693,12 +806,19 @@ export const ENCOUNTERS: EncounterNpc[] = [
           { speaker: '卖茶大叔', text: '今年春茶齐，价钱比往年松。' },
           { speaker: '卖茶大叔', text: '买茶别光看包装，闻闻才晓得。' },
         ],
+        linesByRegion: {
+          hangzhou: [
+            { speaker: '卖茶大叔', text: '清明前后，梅家坞这条路上全是来买茶的。' },
+            { speaker: '卖茶大叔', text: '龙井好不好，泡开了看汤色——清亮透绿的才新鲜。' },
+          ],
+        },
         outcome: { toast: '（你听了一段实在的买茶经。）' },
       },
       {
         id: 'dashu_pit',
         scenes: ['market'],
         weight: 22,
+        requires: (p) => (p.currentRegion ?? 'wuyishan') === 'wuyishan',
         lines: [
           { speaker: '卖茶大叔', text: '这盒包装讲究，送人好看。' },
           { speaker: '卖茶大叔', text: '不过里头啥茶，你懂的。' },
@@ -709,6 +829,28 @@ export const ENCOUNTERS: EncounterNpc[] = [
             outcome: {
               addCoins: -8,
               giveTea: { teaId: 'rougui', grade: 'normal', roastLevel: '足火', count: 1, unitValue: 15 },
+              toast: '盒子确实比茶好看。',
+            },
+          },
+          { label: '不买', outcome: { toast: '（他哈哈一笑，把盒子收了。）' } },
+        ],
+      },
+      {
+        // 杭州对位事件：礼盒装的梗不变，茶换成杭州本地的九曲红梅。
+        id: 'dashu_pit_hz',
+        scenes: ['market'],
+        weight: 22,
+        requires: (p) => p.currentRegion === 'hangzhou',
+        lines: [
+          { speaker: '卖茶大叔', text: '这盒九曲红梅，礼盒装的，送人体面。' },
+          { speaker: '卖茶大叔', text: '不过里头茶就一般般，你懂的。' },
+        ],
+        choices: [
+          {
+            label: '买一盒',
+            outcome: {
+              addCoins: -8,
+              giveTea: { teaId: 'jiuquhongmei', grade: 'normal', roastLevel: '到位', count: 1, unitValue: 16 },
               toast: '盒子确实比茶好看。',
             },
           },
@@ -728,10 +870,13 @@ export const ENCOUNTERS: EncounterNpc[] = [
   },
 
   // ── 神秘茶人：极低概率出现的特殊偶遇，可能给茶、也可能什么都没有 ──
+  // 跨茶区复用：场景权重（mountain 4 / market 2）与武夷山完全一致，不为入杭州偶遇池提率；
+  // 杭州份额略被摊薄（0.7%→0.8% 量级）只随池子大小自然浮动。赠茶按茶区区分：杭州赠龙井上品。
   {
     id: 'mystery_tea_person',
     name: '神秘茶人',
     role: '山中偶遇的茶人',
+    regions: ['wuyishan', 'hangzhou'], // 跨茶区漫游；低概率机制两区一致
     scenes: { mountain: 4, market: 2 },
     events: [
       {
@@ -742,12 +887,19 @@ export const ENCOUNTERS: EncounterNpc[] = [
           { speaker: '神秘茶人', text: '年轻人。' },
           { speaker: '神秘茶人', text: '这山里的水，泡什么都不难喝。' },
         ],
+        linesByRegion: {
+          hangzhou: [
+            { speaker: '神秘茶人', text: '年轻人。' },
+            { speaker: '神秘茶人', text: '西湖的水养茶，也养喝茶的人。' },
+          ],
+        },
         outcome: { toast: '（他看了你一眼，没再多说。）' },
       },
       {
         id: 'mystery_gift',
         scenes: ['mountain', 'market'],
         weight: 28,
+        requires: (p) => (p.currentRegion ?? 'wuyishan') === 'wuyishan',
         lines: [
           { speaker: '神秘茶人', text: '拿着。' },
           { speaker: '神秘茶人', text: '好茶要遇到懂喝的人。' },
@@ -755,6 +907,21 @@ export const ENCOUNTERS: EncounterNpc[] = [
         outcome: {
           giveTea: { teaId: 'dahongpao', grade: 'fine', roastLevel: '足火', count: 1, unitValue: 30 },
           toast: '获得一小包茶（大红袍 · 上品）。',
+        },
+      },
+      {
+        // 杭州对位事件：赠杭州本地的龙井上品（明前的鲜），概率与武夷山版一致。
+        id: 'mystery_gift_hz',
+        scenes: ['mountain', 'market'],
+        weight: 28,
+        requires: (p) => p.currentRegion === 'hangzhou',
+        lines: [
+          { speaker: '神秘茶人', text: '拿着。' },
+          { speaker: '神秘茶人', text: '明前的鲜，都藏在这把叶子里。' },
+        ],
+        outcome: {
+          giveTea: { teaId: 'longjing', grade: 'fine', roastLevel: '刚好', count: 1, unitValue: 36 },
+          toast: '获得一小包茶（龙井 · 上品）。',
         },
       },
       {

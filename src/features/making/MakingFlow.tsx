@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { StepOutcome, StepId, StepParams, Difficulty, BasketQuality } from '../../core/types';
 import { STEP_META, getRecipe, getStepParams, getTea } from '../../core/data/teas';
+import { getComic } from '../../core/data/comics';
 import { computeResult } from '../../core/making/scoring';
 import { HangzhouGardenScene } from '../../components/scenes/HangzhouGardenScene';
 import { getWeatherForDay, makingRate, zuoqingWeather } from '../../core/data/weather';
@@ -23,19 +24,6 @@ function resolveParams(step: StepId, teaId: string, difficulty: Difficulty, bq?:
   return getStepParams(teaId, step, difficulty, bq);
 }
 
-/** 杭州茶园采茶引导（阿青的口吻：小大人、嘴硬）。 */
-const HZ_PICK_TUTORIAL = [
-  '想采茶？先看叶子。',
-  '太嫩的不要，太老的也不要。',
-  '要正当时的——你分得出来吗？',
-  '自己挑挑看。',
-];
-const HZ_PICK_BASKET: Record<BasketQuality, string> = {
-  good: '嗯，这一篓挑得还行。',
-  normal: '有几片不太对，不过也能做。',
-  rough: '这篓叶子有点杂，你可别糊弄。',
-};
-
 /** 龙井（绿茶）采的是嫩芽，不是开面叶——阿青的口吻也跟着变。 */
 const HZ_BUD_TUTORIAL = [
   '做龙井？那就不是这种采法了。',
@@ -47,6 +35,19 @@ const HZ_BUD_BASKET: Record<BasketQuality, string> = {
   good: '嗯，这一篓嫩得很齐。',
   normal: '有几片偏大了，也能做。',
   rough: '老嫩不匀——龙井最挑这个。',
+};
+
+/** 九曲红梅（红茶）也是嫩采：一芽一叶到一芽二叶初展都正当时，张开了、老了就不要。 */
+const HZ_HONGCHA_TUTORIAL = [
+  '做九曲红梅？那采的也是嫩叶。',
+  '一芽一叶、一芽二叶初展，都正当时——叶子张开了、老了就不要。',
+  '九曲红梅后面还要萎凋、揉捻、发酵，这一篓鲜叶就是底子。',
+  '你挑挑看。',
+];
+const HZ_HONGCHA_BASKET: Record<BasketQuality, string> = {
+  good: '芽叶正当时，拿去做红茶正合适。',
+  normal: '有几片偏老，做出来汤会粗一点。',
+  rough: '老嫩不匀——红茶就吃这个亏。',
 };
 
 /** 郭叔（杭州制茶师傅）的开工提点：按茶类 × 工序给一句，每道工序动手前看一眼。
@@ -90,19 +91,34 @@ export default function MakingFlow() {
 
   // 采茶步骤的地区化（同一玩法，不同「跟着谁、在哪儿采」）：杭州=阿青+杭州茶园。
   const isHz = tea.regionId === 'hangzhou';
-  // 同一片杭州茶园里，两种茶的采摘标准不同：九曲红梅=开面采，龙井=嫩芽采。
+  // 同一片杭州茶园里，两种茶的采摘标准不同：九曲红梅=红茶嫩采（一芽一叶~一芽二叶初展），龙井=嫩芽采。
   const isLongjing = teaId === 'longjing';
-  const pickTutorial = isHz ? (isLongjing ? HZ_BUD_TUTORIAL : HZ_PICK_TUTORIAL) : undefined;
-  const pickBasket = isHz ? (isLongjing ? HZ_BUD_BASKET : HZ_PICK_BASKET) : undefined;
+  const pickTutorial = isHz ? (isLongjing ? HZ_BUD_TUTORIAL : HZ_HONGCHA_TUTORIAL) : undefined;
+  const pickBasket = isHz ? (isLongjing ? HZ_BUD_BASKET : HZ_HONGCHA_BASKET) : undefined;
   const pickHint = isHz
-    ? (isLongjing ? '挑嫩的摘——一枚芽带一片叶的最好。' : '阿青盯着呢——按住茶梢，往下一带就摘下来了。')
+    ? (isLongjing
+      ? '挑嫩的摘——一枚芽带一片叶的最好。'
+      : '要嫩的——一芽一叶、一芽二叶都行，开叶的不要。')
     : undefined;
+  // 采茶教学按「采摘模式」记：开面采沿用 picking_taught；嫩芽采（龙井/九曲红梅）用 picking_taught_bud，
+  // 各教各的——玩家在武夷山学过开面采，到杭州仍会看到嫩芽采的引导（采摘逻辑不同，必须告知）。
+  const pickMode = tea.gameProfile.picking?.pickingMethod === 'bud' ? 'bud' : 'open-face';
+  const pickTaughtFlag = pickMode === 'bud' ? 'picking_taught_bud' : 'picking_taught';
+  // 采茶底部知识小字按茶种取（龙井/九曲红梅各有嫩采小字）；其余步骤沿用 STEP_META。
+  const stepNote = step === 'picking'
+    ? (tea.gameProfile.picking?.knowledgeNote ?? meta.simplificationNote)
+    : meta.simplificationNote;
 
   function handle(o: StepOutcome) {
     const next = [...outcomes, o];
     setOutcomes(next);
     if (o.basketQuality) setBasketQuality(o.basketQuality); // 这一篓鲜叶的品质，后续工序消费
-    if (STEP_META[step].knowledgeComicId) unlockComic(STEP_META[step].knowledgeComicId);
+    // 知识漫画按茶区解锁：采茶的知识卡（武夷山风土）不给杭州茶弹——龙井/九曲红梅采茶不串武夷山知识。
+    const comicId = STEP_META[step].knowledgeComicId;
+    if (comicId) {
+      const comic = getComic(comicId);
+      if (comic && comic.regionId === tea.regionId) unlockComic(comicId);
+    }
     if (index + 1 >= steps.length) {
       const result = computeResult(teaId, next, difficulty);
       const gain = result.grade === 'fine' ? 5 : result.grade === 'good' ? 3 : result.grade === 'normal' ? 2 : 1;
@@ -137,8 +153,8 @@ export default function MakingFlow() {
           params={params}
           difficulty={difficulty}
           teaId={teaId}
-          taught={!!player.flags['picking_taught']}
-          onTaught={() => setFlag('picking_taught', 1)}
+          taught={!!player.flags[pickTaughtFlag]}
+          onTaught={() => setFlag(pickTaughtFlag, 1)}
           onDone={handle}
           presenterNpcId={isHz ? 'aqing' : undefined}
           presenterName={isHz ? '阿青 · 茶园里的孩子' : undefined}
@@ -149,7 +165,7 @@ export default function MakingFlow() {
         />
       )}
       {step === 'daoqing' && <DaoqingStep params={params} difficulty={difficulty} weatherRate={weatherRate} onDone={handle} />}
-      {step === 'zuoqing' && <ZuoqingStep params={params} difficulty={difficulty} weather={zuoqingW} onDone={handle} />}
+      {step === 'zuoqing' && <ZuoqingStep params={params} difficulty={difficulty} teaId={teaId} weather={zuoqingW} onDone={handle} />}
       {step === 'chao-rou' && <ChaoRouStep params={params} difficulty={difficulty} onDone={handle} />}
       {step === 'roasting' && (
         <RoastingStep
@@ -170,7 +186,7 @@ export default function MakingFlow() {
       {step === 'drying' && <DryingStep params={params} difficulty={difficulty} teaId={teaId} day={player.day} onDone={handle} />}
 
       <div className="hint" style={{ marginTop: 14, opacity: 0.7 }}>
-        {meta.simplificationNote}
+        {stepNote}
       </div>
       </div>
     </>

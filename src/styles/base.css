@@ -444,6 +444,28 @@ body {
   font-size: 16px;
 }
 .dialog-continue { margin-top: 2px; }
+
+/* ───── NPC 对话气泡（你一句我一句） ───── */
+.dialog-bubble-wrap { display: flex; flex-direction: column; }
+.dialog-bubble {
+  max-width: 88%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  margin: 0 0 10px;
+  background: rgba(251, 246, 236, 0.16);
+  animation: dlg-in 0.28s ease both;
+}
+.dialog-bubble--npc { align-self: flex-start; border-bottom-left-radius: 4px; }
+.dialog-bubble--mine { align-self: flex-end; border-bottom-right-radius: 4px; background: rgba(126, 166, 122, 0.42); }
+.dialog-bubble .dialog-line { margin: 0; }
+@keyframes dlg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+/* 旁白（（…）开头）气泡：弱化的左对齐样式，与 NPC/我 区分 */
+.dialog-bubble--narr { align-self: flex-start; border-bottom-left-radius: 4px; background: rgba(251, 246, 236, 0.08); font-style: italic; opacity: 0.86; }
+/* 跟进分支里追加的对话行，略缩进以示承接 */
+.dialog-bubble--follow { margin-left: 12px; }
 .dialog-choices { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
 .dialog-choices .btn { background: rgba(251, 246, 236, 0.92); border-color: rgba(200, 169, 138, 0.6); color: var(--ink); }
 
@@ -553,6 +575,27 @@ body {
 .btn-ghost { background: transparent; border-color: rgba(200, 169, 138, 0.5); color: #f3e6cf; box-shadow: none; }
 .hint.warn { color: #f0b9a0; margin: 2px 0; }
 .sold-msg { color: #f3e6cf; margin-top: 6px; }
+.trade-pick { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.trade-pick input[type="checkbox"] { width: 18px; height: 18px; accent-color: #7ea67a; flex: none; }
+.sell-qty { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.sell-qty .hint { margin: 0; }
+.sell-summary { margin: 4px 0 2px; color: #f3e6cf; }
+
+/* ───── 茶集市 · 今日行情（显眼卡片，与 NPC 对话区拉开层级） ───── */
+/* 设计意图：今日行情是每日信息入口，用更重的卡片层级 + 顶部强调条 + 留白，
+   与小满的对话/交易列表在视觉上明确分层，不再像同一段连续文本。 */
+.market-quote {
+  margin: 8px 0 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(200, 178, 122, 0.24), rgba(200, 178, 122, 0.10));
+  border: 1px solid rgba(200, 169, 138, 0.5);
+  border-top: 3px solid #c8b27a;
+  box-shadow: 0 3px 12px rgba(40, 28, 16, 0.30);
+}
+.market-quote-head { font-family: var(--serif); font-size: 16px; font-weight: 600; color: #f6e9cf; letter-spacing: 0.03em; }
+.market-quote-title { font-family: var(--serif); font-size: 17px; color: #fbf6ec; margin: 4px 0 2px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+.market-quote .hint { margin: 0; color: rgba(243, 230, 207, 0.9); }
 
 /* ───── 茶集市 V0.3：逛摊与买茶 ───── */
 .market-home { display: flex; flex-direction: column; gap: 8px; }
@@ -585,10 +628,15 @@ body {
 }
 .stall-tea-head { font-family: var(--serif); font-size: 15px; color: #fbf6ec; }
 .stall-tea-desc { font-size: 13.5px; color: rgba(243,230,207,0.85); font-style: italic; }
+.stall-tea-note { font-size: 12.5px; color: rgba(200,178,122,0.92); font-style: normal; margin-top: 4px; padding-left: 8px; border-left: 2px solid rgba(200,169,138,0.55); }
 .stall-tea-buy { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
 .stall-tea-buy .btn { margin: 0; padding: 7px 14px; font-size: 13.5px; width: auto; }
 .stall-tea-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .stall-tea-actions .btn { margin: 0; padding: 6px 12px; font-size: 13px; width: auto; }
+
+/* 茶集市 · 未解锁茶区探索预告位（仅文案，无价格/无购买按钮） */
+.stall-tea--locked { border-style: dashed; opacity: 0.82; }
+.stall-tea--locked .stall-tea-head { color: rgba(243,230,207,0.72); }
 
 /* 茶集市 V0.4：「看看茶」详情面板 / 「问问老板」问答面板（不出现任何专业评分数字） */
 .tea-detail, .ask-panel {

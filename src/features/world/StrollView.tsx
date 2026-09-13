@@ -4,6 +4,7 @@ import BackButton from '../../components/BackButton';
 import { NpcStage } from '../../components/NpcStage';
 import { getNpc } from '../../core/data/npcs';
 import { getTea } from '../../core/data/teas';
+import { GRADE_LABEL, type Grade } from '../../core/types';
 import { rollStrollEvent, type StrollEvent } from '../../core/data/strolls';
 
 /**
@@ -36,12 +37,19 @@ export default function StrollView({
   const visitsLeft = Math.max(0, 3 - player.mountainVisitsToday);
   const npc = event.npcId ? getNpc(event.npcId) : null;
 
+  // 赠茶横幅状态：沿用武夷山山路偶遇的 .tea-gain 内联提示，明确告诉玩家获得了什么茶。
+  const [gain, setGain] = useState<{ name: string; grade: Grade; count: number } | null>(null);
+
   // 事件的小奖励：只在事件首次展示时发放一次（「再走走」重抽后重新允许）。
   useEffect(() => {
-    if (!event.giveTea) return;
+    if (!event.giveTea) { setGain(null); return; }
     const g = event.giveTea;
     addGiftTea(g.teaId, g.grade, g.count, g.giftTag);
-    showToast(`🍵 ${getTea(g.teaId).name} ×1 已放入茶篓`);
+    const name = getTea(g.teaId).name;
+    setGain({ name, grade: g.grade, count: g.count });
+    // 显式点名：谁赠的 + 什么茶（带品质） + 数量，避免玩家忽略获得。
+    const who = npc ? `${npc.name}赠的` : '';
+    showToast(`🍵 获得${who}${name}（${GRADE_LABEL[g.grade]}）×${g.count} 已放入茶篓`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id]);
 
@@ -61,9 +69,26 @@ export default function StrollView({
           {npc && <span className="dialog-role-inline">{npc.name} · {npc.role}</span>}
         </div>
         {!npc && <p className="dialog-line">{intro}</p>}
-        {event.lines.map((l, i) => (
-          <p className="dialog-line" key={i}>{l}</p>
-        ))}
+        {/* 你一句我一句：按说话人分气泡（你=右对齐绿；NPC/旁白=左对齐），key 触发淡入+上滑。 */}
+        <div className="dialog-bubble-wrap">
+          {event.lines.map((l, i) => {
+            const norm = typeof l === 'string' ? { speaker: undefined, text: l } : l;
+            const cls = norm.speaker === '你' ? 'dialog-bubble--mine' : norm.speaker ? 'dialog-bubble--npc' : 'dialog-bubble--narr';
+            return (
+              <div className={`dialog-bubble ${cls}`} key={i}>
+                <p className="dialog-line">{norm.text}</p>
+              </div>
+            );
+          })}
+        </div>
+        {/* 赠茶内联横幅：与武夷山山路偶遇同款，明确「+1 茶（品质）已放入茶篓」 */}
+        {gain && (
+          <div className="tea-gain" style={{ marginTop: 12 }}>
+            <span className="tea-gain-icon">🍵</span>
+            <span className="tea-gain-text">+{gain.count} {gain.name}（{GRADE_LABEL[gain.grade]}）</span>
+            <div className="tea-gain-sub">已放入茶篓</div>
+          </div>
+        )}
       </NpcStage>
 
       <div className="scene-foot">

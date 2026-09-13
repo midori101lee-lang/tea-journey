@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { StepOutcome, StepParams, FaultTag, Difficulty } from '../../../core/types';
+import type { StepOutcome, StepParams, Difficulty } from '../../../core/types';
 import { RoastPotSvg } from '../../../components/art/Art';
 import { getTea } from '../../../core/data/teas';
 import { computeRoastBand } from '../../../core/making/roastBand';
+import { evaluateRoasting, type RoastStyle } from '../../../core/making/roasting';
 
 interface Props {
   params: StepParams;
@@ -15,6 +16,13 @@ interface Props {
 }
 
 type Zone = 'center' | 'edge' | 'warn' | 'bad';
+
+/** 各火性倾向的一句焙火心法（按茶种 gameProfile.roastStyle 给，纯文案） */
+const STYLE_HINT: Record<RoastStyle, string> = {
+  aroma: '肉桂求香，中火把香留住——别贪高，火一急香就收走了。',
+  mellow: '水仙吃得住火，中火足火都行，要紧的是焙透、焙稳。',
+  balanced: '大红袍轻中足都是路子，要紧的是不偏不倚、一炉稳到底。',
+};
 
 /**
  * 焙火：动态火候指针（V0.3 第 9 节）
@@ -97,11 +105,14 @@ export default function RoastingStep({ params, difficulty, teaId, proficiency, d
     else st.current.haste += side > 0 ? 0.12 : 0.06;
 
     setResults([...st.current.taps]);
-    // 反馈文案：自然语言，无温度数值
+    // 反馈文案：分方向的自然语言（偏左=火轻、偏右=火足），无数值。
+    // 正中（dist 极小）时 side 是随机的，按「稳」处理，不误导方向。
     setNote(
-      zone === 'center' ? '火候走得稳。'
-        : zone === 'edge' ? '火候还算稳。'
-          : '火有些急了。',
+      zone === 'bad' ? '这一下火散了。'
+        : zone === 'warn' ? (side > 0 ? '火明显过了一点。' : '火明显轻了一点。')
+          : dist < 0.015 ? '火候走得稳。'
+            : side > 0 ? '火有点急了。'
+              : '火还没跟上来。',
     );
 
     const next = tapIndex + 1;
@@ -111,30 +122,24 @@ export default function RoastingStep({ params, difficulty, teaId, proficiency, d
 
   function finish() {
     setFinished(true);
-    const tapsData = st.current.taps;
-    const quality = tapsData.reduce((s, t) => s + ({ center: 1, edge: 0.7, warn: 0.35, bad: 0 }[t.zone] ?? 0), 0) / tapsData.length;
-    const dists = tapsData.map((t) => t.dist);
-    const variance = dists.reduce((s, d) => s + Math.pow(d - dists.reduce((a, b) => a + b, 0) / dists.length, 2), 0) / dists.length;
-    const stability = Math.max(0, 1 - variance * 10); // 忽左忽右扣分（放宽）
-    const haste = st.current.haste;
-
-    let score = quality * 70 + stability * 30 - (haste > hasteThreshold ? 18 : 0);
-    if (casual) score += 5;
-    score = Math.max(0, Math.min(100, score));
-
-    const faults: FaultTag[] = [];
-    if (haste > hasteThreshold) faults.push('roast_over');
-    else if (haste > hasteThreshold * 0.7) faults.push('roast_hasty');
-
-    const roastLevel = haste > 1.2 ? '足火' : score >= 65 ? (haste > 0.6 ? '足火' : '中火') : '轻火';
+    const style: RoastStyle = getTea(teaId).gameProfile.roastStyle ?? 'balanced';
+    // 结算走纯函数（core/making/roasting.ts）：组件与模拟验证共用同一份评分逻辑
+    const r = evaluateRoasting({
+      taps: st.current.taps,
+      teaId,
+      style,
+      casual,
+      hasteThreshold,
+    });
 
     onDone({
       step: 'roasting',
-      score: Math.round(score),
-      faults,
-      haste,
-      visualState: { dryColor: roastLevel === '足火' ? '#3a2e22' : '#4a3a2a', shape: 'curled', edgeRed: 0, sheen: score / 100 },
-      comment: score >= 78 ? '这一炉，火走得不错。' : score >= 55 ? '火还行，就是不够稳。' : haste > hasteThreshold ? '这锅茶……焙得过头了。' : '火散了。',
+      score: r.score,
+      faults: r.faults,
+      haste: r.haste,
+      lean: r.lean,
+      visualState: { dryColor: r.level === '足火' || r.level === '高火' || r.level === '病火' ? '#3a2e22' : '#4a3a2a', shape: 'curled', edgeRed: 0, sheen: r.score / 100 },
+      comment: r.comment,
     });
   }
 
@@ -149,6 +154,7 @@ export default function RoastingStep({ params, difficulty, teaId, proficiency, d
   return (
     <div>
       <div style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>焙火 · 低温久烘</div>
+      <p className="hint">{STYLE_HINT[getTea(teaId).gameProfile.roastStyle ?? 'balanced']}</p>
       <p className="hint">指针来回走，看准了点一下锁定火候。不是一次定生死，要一次一次稳住。第 {Math.min(tapIndex + 1, taps)} / {taps} 次</p>
 
       <div style={{ textAlign: 'center' }}>

@@ -22,7 +22,9 @@ export const TEAS: Tea[] = [
     ],
     gameProfile: {
       difficulty: 2,
-      roastBias: { center: 0.06, width: -0.02 }, // 仅游戏参数：绿区略偏急
+      // 轻做青·中火求香：绿区略偏急侧；火性由 roastStyle:'aroma' 参与焙火软加分（非现实焙火标准）
+      roastBias: { center: 0.04, width: -0.02 },
+      roastStyle: 'aroma',
       picking: { pickingMethod: 'open-face', targetMaturity: 'middle-open', attemptCount: 12, basketNeed: 8, tolerance: 0.6 },
       unlockCondition: { type: 'initial' },
     },
@@ -46,7 +48,9 @@ export const TEAS: Tea[] = [
     ],
     gameProfile: {
       difficulty: 1,
-      roastBias: { center: -0.05, width: 0.04 }, // 仅游戏参数：绿区略宽、偏稳
+      // 从容做青·中足火求醇：绿区稍宽、略偏缓侧；火性由 roastStyle:'mellow' 参与焙火软加分（非现实焙火标准）
+      roastBias: { center: -0.04, width: 0.03 },
+      roastStyle: 'mellow',
       picking: { pickingMethod: 'open-face', targetMaturity: 'middle-open', attemptCount: 12, basketNeed: 8, tolerance: 0.66 },
       unlockCondition: { type: 'initial' },
     },
@@ -71,7 +75,9 @@ export const TEAS: Tea[] = [
     ],
     gameProfile: {
       difficulty: 3,
-      roastBias: { center: 0, width: 0 },
+      // 平衡做青·火功灵活：绿区最窄（精度承担难度）；火性由 roastStyle:'balanced' 参与——轻/中/足皆有效风格
+      roastBias: { center: 0, width: -0.03 },
+      roastStyle: 'balanced',
       picking: { pickingMethod: 'open-face', targetMaturity: 'middle-open', attemptCount: 12, basketNeed: 8, tolerance: 0.52 },
       unlockCondition: { type: 'motherTree', note: '认得那几棵母树之后，老陈说你也试试大红袍。' },
     },
@@ -120,7 +126,11 @@ export const TEAS: Tea[] = [
     gameProfile: {
       difficulty: 1,
       roastBias: { center: 0, width: 0 },
-      picking: { pickingMethod: 'open-face', targetMaturity: 'middle-open', attemptCount: 12, basketNeed: 8, tolerance: 0.66 },
+      // 红茶嫩采（一芽一叶~一芽二叶初展），与岩茶开面采分开；交互复用 PickingStep 的 bud 模式
+      picking: {
+        pickingMethod: 'bud', targetMaturity: 'bud-one-leaf', attemptCount: 12, basketNeed: 8, tolerance: 0.66,
+        knowledgeNote: '九曲红梅嫩采：一芽一叶、一芽二叶初展都正当时；游戏做三类茶青判断（太嫩/合适/太老）',
+      },
       unlockCondition: { type: 'initial' },
     },
   },
@@ -144,7 +154,10 @@ export const TEAS: Tea[] = [
       difficulty: 2,
       roastBias: { center: 0, width: 0 },
       // 绿茶采的是嫩芽：一芽一叶为最佳、一芽二叶次之（游戏参数，非审评数字）
-      picking: { pickingMethod: 'bud', targetMaturity: 'bud-one-leaf', attemptCount: 12, basketNeed: 8, tolerance: 0.62 },
+      picking: {
+        pickingMethod: 'bud', targetMaturity: 'bud-one-leaf', attemptCount: 12, basketNeed: 8, tolerance: 0.62,
+        knowledgeNote: '龙井重嫩采：讲芽叶鲜嫩、匀整，常见一芽一叶/一芽二叶初展；游戏做三类茶青判断（太嫩/合适/太老）',
+      },
       unlockCondition: { type: 'flag', flag: 'longjing_unlocked', note: '龙井暂时锁定，等梅家坞那条线走通。' },
     },
   },
@@ -267,6 +280,7 @@ export const YANCHA_RECIPE: ProcessingRecipe = {
       greenDropPerSec: 0.16,
     },
     roasting: {
+      // 结算构成：命中质量×60 + 稳定性×20 + 火性合拍×20（火性软分，见 core/making/roasting.ts）
       rounds: 5,
       swingSpeed: 1.6,
       band: { centerBase: 0.5, widthBase: 0.18, driftPerRound: 0.04, randomDrift: 0.06 },
@@ -293,19 +307,19 @@ export const HONGCHA_RECIPE: ProcessingRecipe = {
   displayNote: '本流程取自工夫红茶最具辨识度的节点（萎凋 → 揉捻 → 发酵 → 烘干），非完整工艺。',
   params: {
     picking: { rounds: 12 },
-    // 萎凋：区间收窄 → 第一锅就有「看叶态、判断收青」的压力（不再轻松上品）
-    withering: { moistureTarget: [47, 59], moistureRate: 1.15 },
-    // 揉捻：理想力度区间收窄；过重更易断条
-    rolling: { rounds: 3, idealRollForce: [0.46, 0.68], breakRatePerSec: 0.06 },
-    // 发酵：九曲红梅记忆点——区间收窄，另有轻微确定性漂移（见 FermentationStep）
-    fermentation: { fermentTarget: [67, 79], fermentRate: 0.95 },
-    // 烘干：火候指针，每轮绿区轻微漂移（见 DryingStep）
+    // 萎凋：收青区间收窄（见 WitheringStep）——看叶态、判断收青的压力更实，不再轻松上品
+    withering: { moistureTarget: [50, 57], moistureRate: 1.15 },
+    // 揉捻：理想力度区间收窄；过重更易断条（band 收窄 → inBand 更难，分数更依赖精准）
+    rolling: { rounds: 3, idealRollForce: [0.50, 0.66], breakRatePerSec: 0.06 },
+    // 发酵：九曲红梅记忆点——最佳窗口收窄（见 FermentationStep），「甜香正浓」的窗口更小，出堆更讲究
+    fermentation: { fermentTarget: [70, 76], fermentRate: 0.95 },
+    // 烘干：火候指针，每轮绿区轻微漂移（见 DryingStep；绿区宽度在组件内收窄）
     drying: { rounds: 3 },
   },
   casual: {
-    withering: { moistureTarget: [43, 62], moistureRate: 0.95 },
-    rolling: { rounds: 2, idealRollForce: [0.42, 0.72] },
-    fermentation: { fermentTarget: [62, 82], fermentRate: 0.85 },
+    withering: { moistureTarget: [45, 60], moistureRate: 0.95 },
+    rolling: { rounds: 2, idealRollForce: [0.44, 0.70] },
+    fermentation: { fermentTarget: [66, 80], fermentRate: 0.85 },
     drying: { rounds: 2 },
   },
 };
@@ -323,15 +337,16 @@ export const GREEN_TEA_RECIPE: ProcessingRecipe = {
   displayNote: '本流程取自绿茶最具辨识度的节点（杀青 → 理条 → 干燥），非完整工艺。',
   params: {
     picking: { rounds: 12 },
-    // 杀青：锅温上升快、绿区不宽——要「快、准」，慢了青味压不住，急了就焦边
-    fixation: { rounds: 3, heatRisePerSec: 0.42, safeBand: { centerBase: 0.5, widthBase: 0.2, driftPerRound: 0.05, randomDrift: 0.05 } },
-    // 理条：抓·压·推三式按序做对，把茶叶压扁、挺直
+    // 杀青：锅温上升快、绿区明显收窄（见 FixationStep）——要「快、准」，慢了青味压不住，急了就焦边；
+    //       绿区窄 + 逐轮回移 → 上品需要轮轮压在合适段，失误即掉出上品
+    fixation: { rounds: 3, heatRisePerSec: 0.42, safeBand: { centerBase: 0.5, widthBase: 0.14, driftPerRound: 0.06, randomDrift: 0.04 } },
+    // 理条：抓·压·推三式按序做对，把茶叶压扁、挺直（见 ShapingStep；好拍窗口收窄、准拍权重降低）
     shaping: { rounds: 3, gestureCount: 3 },
-    // 干燥：火候指针，每轮绿区轻微漂移（见 DryingStep）
+    // 干燥：火候指针，每轮绿区轻微漂移（见 DryingStep；绿区宽度在组件内收窄）
     drying: { rounds: 3 },
   },
   casual: {
-    fixation: { rounds: 2, safeBand: { centerBase: 0.5, widthBase: 0.26, driftPerRound: 0.03, randomDrift: 0.04 } },
+    fixation: { rounds: 2, safeBand: { centerBase: 0.5, widthBase: 0.18, driftPerRound: 0.04, randomDrift: 0.04 } },
     shaping: { rounds: 2, gestureCount: 3 },
     drying: { rounds: 2 },
   },
@@ -367,20 +382,23 @@ export function isCraftable(teaId: string): boolean {
 }
 
 /**
- * 三茶轻微手感差异（仅游戏参数，非现实茶学事实）：用现有工序参数实现，
- * 不显示难度数字、不新建难度系统。
- * 肉桂=张扬（节奏稍敏感：理想区间略窄）、水仙=温润（容错略宽：理想区间略宽）、
- * 大红袍=平衡（不覆盖，使用基础值）。焙火差异仍由 gameProfile.roastBias 承担。
+ * 三茶手感差异（仅游戏参数，非现实茶学事实）：用现有工序参数实现，
+ * 不显示难度数字、不新建难度系统。做青与焙火分开塑造（用户 2026-09-13 定稿）：
+ *   肉桂=轻做青护香（摇青区间下移收窄）、水仙=从容走水（区间宽+静置观察容错更宽 idleLimit）、
+ *   大红袍=平衡（不覆盖，用基础值）。焙火差异由 gameProfile.roastBias（绿区位置/宽度）
+ *   与 gameProfile.roastStyle（火性软加分，见 core/making/roasting.ts）共同承担。
+ *   差异的「玩家可感知面」由各步骤的茶种提示文案承担（ZuoqingStep/RoastingStep）。
  */
 export const TEA_STEP_OVERRIDES: Record<string, Partial<Record<StepId, Partial<StepParams>>>> = {
   rougui: {
     daoqing: { softnessTarget: [57, 76] },
-    zuoqing: { idealShakeForce: [0.47, 0.70] },
+    // 轻做青：摇青区间整体下移（中心 0.585→0.54），手要比别的茶轻
+    zuoqing: { idealShakeForce: [0.42, 0.66] },
     'chao-rou': { idealRollForce: [0.42, 0.68] },
   },
   shuixian: {
     daoqing: { softnessTarget: [52, 80] },
-    zuoqing: { idealShakeForce: [0.42, 0.75] },
+    zuoqing: { idealShakeForce: [0.42, 0.75], idleLimit: 14 },
     'chao-rou': { idealRollForce: [0.38, 0.72] },
   },
   // dahongpao: 不覆盖，使用基础值（平衡派）

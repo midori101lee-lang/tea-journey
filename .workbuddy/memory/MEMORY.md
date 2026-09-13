@@ -54,3 +54,12 @@
 - 最大风险（P0 先验证）：XHS webview 是否持久化 localStorage（否则进度丢）；资源体积（背景~5.5MB/立绘~6MB）；`window.confirm`/`reload` 改应用内确认+`store.reset()`。
 - 茶区扩展：内容已数据驱动，地点叙事流写死 WebApp 逐茶区分支；双茶区不重构，扩 3+ 再抽 `REGION_LOCATION_UI` 配置。
 - 评估文档：`docs/小红书版本_开发评估.md`（P0/P1/P2 顺序）。
+
+## 集市跨区流通定稿规则（2026-09-13 用户拍板）
+- **本地茶=集市主体；已解锁外地茶=少量流通（跨区茶商 ~40% 带 1 款）；未解锁外地茶=不实际出售，仅「？？？茶区·尚未解锁」预告位**（`Stall.lockedHint`，纯展示无数据）。
+- 判定走 `teaRegions.isTeaRegionUnlocked(id, flags)`（unlockFlag→flags，否则静态 unlocked；TeaWorldView 同源）。`generateStalls(day, region, flags?)` 实装。
+- 彩蛋永不进商品池：`EGG_TEAS={wangba,wuniuzao}`；wangba 事件锁 currentRegion==='wuyishan'，wuniuzao 仅牛姐(regions:['hangzhou'])。
+- ⚠️ NPC id 郭叔=`gu_shu`（不是 gushu）；杭州摊主池见 `marketStalls.ts STALL_OWNERS_BY_REGION`。
+- 杭州偶遇池（2026-09-13 扩充定稿）：**杭州偶遇仅发生在共用 market 场景**（hz-* 场景不接 EncounterLayer）；阵容 9 人=laojia/niujie/linggu/young_male_traveler/tea_dajie/young_farmer/maicha_dashu/roadside_uncle/mystery_tea_person(market 权重 2，与武夷山一致不提率)。复用 NPC 的 market 事件用 `linesByRegion.hangzhou` 说杭州话（含「你」回应）；赠/售茶事件按茶区一分为二（requires 锁 currentRegion + `_hz` 对位事件），杭州侧只给杭州本地茶（杭州茶 roastLevel=到位/刚好，非足火）。未来给 hz-* 场景接偶遇层前，需先补齐各 NPC 非 market 事件的 linesByRegion。
+- ⚠️ 对话池铁律（2026-09-13 bug 定稿）：`NpcDialog.buildSteps` 在 first/conditional/repeat 全未命中时**兜底整池重播**（含已过期的 conditional）。凡池子里有 conditional 对话的 (scene,npcId)，**必须配一条 repeat 对话**，否则一次性剧情完成后会被整池重播（小满王霸茶剧情重复触发即此坑）。`ZhouBoTableDialog` 无此问题（自带 first??cond??话题选择，永不整池兜底）。
+- 岩茶火功系统（2026-09-13 定稿）：焙火结算=`core/making/roasting.ts evaluateRoasting`（纯函数，模拟验证共用）＝命中60+稳定20+火性20−病火罚。三茶火性=STYLE_CURVE 连续插值曲线（肉桂 aroma ideal=0 中火最佳、水仙 mellow 平台 0~0.045 中足皆宜、大红袍 balanced 宽平台轻中足皆风格）；做青差异在 TEA_STEP_OVERRIDES（肉桂轻做青 [0.42,0.66]、水仙 idleLimit14）；标签六档=欠火/轻火/中火/足火/高火/病火（scoring.computeRoastLevel，高火=风格不判焦、病火=焦味）。**模拟校准教训：gauss 噪声 std 要按 Irwin-Hall 归一（×1.732）；火性分必须连续曲线——档位阶跃会让「瞄中心=满分」导致上品率不降。**

@@ -112,7 +112,7 @@ export default function FixationStep({ params, difficulty, teaId = 'longjing', d
     s.finished = true;
     setFinished(true);
     const zs = s.verdicts;
-    const weightOf = (v: Verdict) => (v === 'good' ? 1 : v === 'low' ? 0.5 : 0.2);
+    const weightOf = (v: Verdict) => (v === 'good' ? 1 : v === 'low' ? 0.35 : 0.2);
     const quality = zs.length ? zs.reduce((acc, v) => acc + weightOf(v), 0) / zs.length : 0;
     const goodCount = zs.filter((v) => v === 'good').length;
     const overCount = zs.filter((v) => v === 'over').length;

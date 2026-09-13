@@ -10,12 +10,15 @@ import type { Grade, Player } from '../types';
 
 export type StrollEventKind = 'life' | 'culture' | 'npc' | 'egg' | 'nothing';
 
+/** 散步事件的一行：纯字符串=旁白；对象可带说话人（speaker='你' 即「我」的气泡）。 */
+export type StrollLine = string | { speaker?: string; text: string };
+
 export interface StrollEvent {
   id: string;
   weight: number;
   kind: StrollEventKind;
-  /** 旁白（（…）开头）与对话（可直接当独立行展示）。 */
-  lines: string[];
+  /** 旁白（（…）开头）与对话（可直接当独立行展示）。支持 { speaker:'你' } 制造你一句我一句。 */
+  lines: StrollLine[];
   /** kind='npc'：登场的已有 NPC（立绘 + 名字由调用方按 npcId 取）。 */
   npcId?: string;
   /** 少数事件给一点小奖励（走 addGiftTea：source='gift'，可泡不可卖）。多数事件无奖励。 */
@@ -69,9 +72,11 @@ export const HANGZHOU_STROLL_EVENTS: StrollEvent[] = [
     kind: 'life', weight: 8,
     lines: [
       '（路边有人蹲在竹匾前整理刚采回来的鲜叶，把老叶一片一片挑出去。）',
+      { speaker: '你', text: '「这挑叶子，得挑多久？」' },
+      '（她抬头笑了笑：「一上午吧。鲜叶干净，做出来的茶才亮。」）',
       '（临走时，她硬塞给你一小包自家做的茶：「尝尝鲜。」）',
     ],
-    // 梅家坞唯一的实物奖励：九曲红梅（杭州自己的红茶，龙井解锁线不受影响；gift 可泡不可卖）。
+    // 梅家坞实物奖励：九曲红梅（杭州自己的红茶，龙井解锁线不受影响；gift 可泡不可卖）。
     giveTea: { teaId: 'jiuquhongmei', grade: 'normal', count: 1, giftTag: 'stroll_meijiawu' },
   },
 
@@ -125,24 +130,49 @@ export const HANGZHOU_STROLL_EVENTS: StrollEvent[] = [
     id: 'hz_stroll_npc_linggu',
     kind: 'npc', weight: 8, npcId: 'linggu',
     lines: [
-      '「又见面啦。」',
-      '「梅家坞这条路，我一天能走上三回——走不腻。」',
+      { speaker: '林姑娘', text: '「又见面啦。」' },
+      { speaker: '林姑娘', text: '「梅家坞这条路，我一天能走上三回——走不腻。」' },
+      { speaker: '你', text: '「你这么熟，龙井到底好在哪？」' },
+      { speaker: '林姑娘', text: '「鲜。山里的嫩芽，火候利落，泡出来那口清气，别处学不来。」' },
+      { speaker: '你', text: '「那我得自己试一回。」' },
+      { speaker: '林姑娘', text: '「拿包我刚炒的——你尝尝，跟武夷山不是一个路数。」' },
     ],
+    // 林姑娘回礼：龙井（杭州茶）；gift 可泡不可卖。
+    giveTea: { teaId: 'longjing', grade: 'normal', count: 1, giftTag: 'stroll_meijiawu' },
   },
   {
     id: 'hz_stroll_npc_lingyi',
     kind: 'npc', weight: 8, npcId: 'lingyi',
     lines: [
-      '「哟，你也来村里转悠？」',
-      '「转累了就回茶席坐坐，我那儿茶点常备着。」',
+      { speaker: '玲姨', text: '「哟，你也来村里转悠？」' },
+      { speaker: '玲姨', text: '「转累了就回茶席坐坐，我那儿茶点常备着。」' },
+      { speaker: '你', text: '「玲姨，你茶馆里那个龙井，是自己炒的？」' },
+      { speaker: '玲姨', text: '「哪能全自己炒，也得收村里的鲜叶。不过火候我盯着的。」' },
+      { speaker: '玲姨', text: '「改天来我茶席坐坐，我泡壶红梅给你配茶点。」' },
     ],
   },
   {
     id: 'hz_stroll_npc_gushu',
     kind: 'npc', weight: 8, npcId: 'gu_shu',
     lines: [
-      '「看茶别光用眼睛。」',
-      '「多闻、多喝，手上自然就有数了。」',
+      { speaker: '郭叔', text: '「看茶别光用眼睛。」' },
+      { speaker: '郭叔', text: '「多闻、多喝，手上自然就有数了。」' },
+      { speaker: '你', text: '「郭叔，杭州绿茶和武夷岩茶，差别真有那么大？」' },
+      { speaker: '郭叔', text: '「一个讲鲜爽，一个讲岩骨。路子不同，急不得。」' },
+      { speaker: '你', text: '「受教了。」' },
+      { speaker: '郭叔', text: '「有空来坐，我泡壶龙井，咱俩对比着喝。」' },
+    ],
+  },
+  {
+    id: 'hz_stroll_npc_traveler',
+    kind: 'npc', weight: 8, npcId: 'young_male_traveler',
+    lines: [
+      { speaker: '年轻男旅客', text: '「梅家坞——名字早听过了，今天总算自己走一趟。」' },
+      { speaker: '年轻男旅客', text: '「这满村的绿，跟武夷山那个味儿完全不一样。」' },
+      { speaker: '你', text: '「龙井讲一个『鲜』字，武夷岩茶讲岩骨花香，路子不同。」' },
+      { speaker: '年轻男旅客', text: '「我上一站还在武夷山喝岩茶，这站就喝绿茶了，嘴都忙不过来。」' },
+      { speaker: '你', text: '「慢慢喝，不急。」' },
+      { speaker: '年轻男旅客', text: '「行，我接着逛——下一站听说是杭州城里，到时候再碰。」' },
     ],
   },
 
