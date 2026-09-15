@@ -7,14 +7,17 @@ import { getTeaWare } from '../../core/data/teaWares';
 import { getNpc } from '../../core/data/npcs';
 import { teaVisual } from '../../core/data/teaVisuals';
 import { currentWeatherId, WEATHER_CONFIG } from '../../core/data/weather';
-import type { TeaStack } from '../../core/types';
+import type { SeatSlotId, TeaStack } from '../../core/types';
 import TeaSeatTable from './TeaSeatTable';
 import { IS_XHS } from '../../core/platform';
 import ShareSheet from '../../components/ShareSheet';
 import type { SharePayload } from '../../components/ShareSheet';
 import {
   canEnterTeaSeat, isTeaSeatFirstVisit, rollTeaSeatNpc, teaSeatChatLine, teaSeatGiftChance,
-  rollTeaSeatGift, TEA_SEAT_BY_REGION, LINGGU_WUYI_INVITE_LINES, LINGGU_WUYI_DECLINE_LINES,
+  rollTeaSeatGift, TEA_SEAT_BY_REGION, TEA_SEAT_SLOTS, TEA_SEAT_TRAVEL_ANCHOR,
+  waresForSeatSlot, defaultSeatArrangement, sanitizeSeatArrangement, seatArrangementNote,
+  seatTravelMode, ownedTravelSet,
+  LINGGU_WUYI_INVITE_LINES, LINGGU_WUYI_DECLINE_LINES,
 } from '../../core/data/teaseat';
 
 const GRADE_LABEL: Record<string, string> = { fail: '失败', normal: '普通', good: '良好', fine: '上品' };
@@ -48,15 +51,14 @@ const REGION_TEXT: Record<'hangzhou' | 'wuyishan', { setupIntro: string; leave: 
  * 杭州专属剧情：坐过一次后，林姑娘会来邀请回武夷山（可「再等等」，之后再来找；接受→回武夷山→老陈寒暄→解锁武夷山茶席）。
  */
 export default function TeaSeatView({ regionId }: { regionId: 'hangzhou' | 'wuyishan' }) {
-  const { player, go, setFlags, addGiftTea, showToast, enterRegion, drinkTea } = useGame();
+  const { player, go, setFlags, addGiftTea, showToast, enterRegion, drinkTea, setSeatWare, setSeatMode, restoreSeatDefault } = useGame();
   const cfg = TEA_SEAT_BY_REGION[regionId];
   const text = REGION_TEXT[regionId];
 
   const [phase, setPhase] = useState<'setup' | 'seated' | 'ended'>('setup');
   const [stack, setStack] = useState<TeaStack | null>(null);   // 选中茶叶（不消耗）
-  const [wareId, setWareId] = useState<string | null>(null);   // 选中主茶具
+  const [pickingSlot, setPickingSlot] = useState<SeatSlotId | null>(null); // 正在换哪个功能位
   const [teaDecided, setTeaDecided] = useState(false);         // 「先不摆茶」也算决定过
-  const [wareDecided, setWareDecided] = useState(false);
   const [guestNpc, setGuestNpc] = useState<string | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const [inviteMode, setInviteMode] = useState(false);         // 林姑娘的「回武夷山」邀请（杭州专属）
@@ -83,9 +85,22 @@ export default function TeaSeatView({ regionId }: { regionId: 'hangzhou' | 'wuyi
 
   const weather = WEATHER_CONFIG[currentWeatherId(player)];
   const weatherText = `今天${weather.name}——${weather.shortDescription}`;
-  const ware = wareId ? getTeaWare(wareId) : undefined;
   const firstVisit = isTeaSeatFirstVisit(player, regionId);
   const ownedWares = player.teaWareInventory.map(getTeaWare).filter((w) => !!w);
+  // 茶席布置：保存过就用保存的（消毒后），从未保存过（旧档/首次）按收藏自动生成默认席——
+  // 纯函数确定性生成，老玩家进来看到的是一张摆好的茶席，不会空白。
+  const arrangement =
+    player.teaSeat !== undefined
+      ? sanitizeSeatArrangement(player.teaSeat, player.teaWareInventory)
+      : defaultSeatArrangement(player.teaWareInventory);
+  // 旅行席：一键切换的整体模式（隐藏普通功能位，旅行套组整套上场）
+  const travelMode = seatTravelMode(player.teaSeat, player.teaWareInventory);
+  const travelSet = ownedTravelSet(player.teaWareInventory);
+  const seatNote = seatArrangementNote(
+    arrangement,
+    stack ? getTea(stack.teaId).category : undefined,
+    travelMode,
+  );
   // 杭州专属：阿青的绿豆糕常驻配件槽；武夷山配件槽=素色小杯。
   const hasCake = regionId === 'hangzhou' && !!player.flags['received_lvdocake'];
   // 林姑娘的邀请（杭州专属）：坐过一次、武夷山茶席还没解锁 → 每次入席她都会再来提一嘴（可再等等，不锁内容）。
@@ -202,23 +217,102 @@ export default function TeaSeatView({ regionId }: { regionId: 'hangzhou' | 'wuyi
         {/* L3 茶桌（前景组件，遮 NPC 下半身；两茶区共用） */}
         <TeaSeatTable />
 
-        {/* L4 茶具 / 茶叶 / 配件（三槽位，全部动态叠加在桌面上；尺寸收敛到「摆在桌上」的透视感） */}
+        {/* L4 席面：旅行席=套组整体一张图居中上场；普通席=功能位固定锚点（z3）。
+            按 order 先画垫底的茶盘/后排，再画前排 → 同层遮挡自然，层级铁律不变。 */}
+        {travelMode && travelSet ? (
+          <div
+            className="teaseat-item"
+            style={{ left: `${TEA_SEAT_TRAVEL_ANCHOR.left}%`, top: `${TEA_SEAT_TRAVEL_ANCHOR.top}%`, width: `${TEA_SEAT_TRAVEL_ANCHOR.width}%` }}
+            title={`${travelSet.name} · 旅行茶席`}
+          >
+            <img src={`${import.meta.env.BASE_URL}${travelSet.asset}`} alt={travelSet.name} />
+          </div>
+        ) : (
+          [...TEA_SEAT_SLOTS].sort((a, b) => a.order - b.order).map((slot) => {
+            const id = arrangement[slot.id];
+            const w = id ? getTeaWare(id) : undefined;
+            if (!w) return null;
+            return (
+              <div
+                key={slot.id}
+                className="teaseat-item"
+                style={{ left: `${slot.left}%`, top: `${slot.top}%`, width: `${slot.width}%` }}
+                title={`${slot.label} · ${w.name}`}
+              >
+                <img src={`${import.meta.env.BASE_URL}${w.asset}`} alt={w.name} />
+              </div>
+            );
+          })
+        )}
         {stack && (
-          <div className="teaseat-item" style={{ left: '31%', top: '71%', width: '12%' }} title={getTea(stack.teaId).name}>
+          <div className="teaseat-item" style={{ left: '21.5%', top: '70.5%', width: '8%' }} title={getTea(stack.teaId).name}>
             <TeaLeafPile color={teaVisual(stack.teaId).leafColor} />
           </div>
         )}
-        {ware && (
-          <div className="teaseat-item" style={{ left: '50%', top: '70.5%', width: '12%' }} title={ware.name}>
-            <img src={`${import.meta.env.BASE_URL}${ware.asset}`} alt={ware.name} />
-          </div>
-        )}
-        {/* ACCESSORY_SLOT：杭州=绿豆糕（阿青赠后常驻）或素杯；武夷山=素色小杯 */}
-        <div className="teaseat-item" style={{ left: '69%', top: '71%', width: '11%' }}>
+        {/* 配件位（剧情小物，非茶具功能位）：杭州=绿豆糕（阿青赠后常驻）；武夷山=素色小杯 */}
+        <div className="teaseat-item" style={{ left: '82%', top: '70%', width: '8%' }}>
           {hasCake
             ? <img src={`${import.meta.env.BASE_URL}assets/snacks/lvdocake.webp`} alt="绿豆糕" />
             : <SmallCupSvg />}
         </div>
+
+        {/* L4.5 席面编辑（仅布置阶段 · 普通席）：功能位热点 + 侧边茶具栏——所见即所得，
+            不再让玩家滚到选茶列表下方找茶具。热点点击区覆盖各锚点桌面带，z5 高于茶具 z3；
+            对话浮层 z6 只在入席后出现，二者不共存。 */}
+        {phase === 'setup' && !travelMode && (
+          <>
+            {TEA_SEAT_SLOTS.map((slot) => {
+              const id = arrangement[slot.id];
+              const active = pickingSlot === slot.id;
+              // 标签收敛：默认只显示功能位名；选中且未摆放时才展开「· 未摆放」，避免空位时标签互相拥挤
+              const tagText = active && !id ? `${slot.label} · 未摆放` : slot.label;
+              return (
+                <button
+                  key={slot.id}
+                  className={`seat-slot-hit${active ? ' active' : ''}`}
+                  style={{ left: `${slot.hit.left}%`, top: `${slot.hit.top}%`, width: `${slot.hit.width}%`, height: `${slot.hit.height}%` }}
+                  onClick={() => setPickingSlot(active ? null : slot.id)}
+                  aria-label={`${slot.label}${id ? '' : ' · 未摆放'}`}
+                >
+                  <span className="seat-slot-tag">{tagText}</span>
+                </button>
+              );
+            })}
+            {pickingSlot && (() => {
+              const slot = TEA_SEAT_SLOTS.find((s) => s.id === pickingSlot)!;
+              const cur = arrangement[slot.id];
+              const wares = waresForSeatSlot(player.teaWareInventory, slot.id);
+              return (
+                <div className="seat-editor">
+                  <div className="seat-editor-head">
+                    <span className="h-serif" style={{ fontSize: 15 }}>{slot.label}</span>
+                    <button className="seat-editor-close" onClick={() => setPickingSlot(null)} aria-label="收起">×</button>
+                  </div>
+                  <p className="hint" style={{ margin: '0 0 6px', opacity: 0.8 }}>{slot.hint}</p>
+                  <button className={`seat-opt${cur == null ? ' active' : ''}`} onClick={() => setSeatWare(slot.id, null)}>
+                    <span className="seat-dot">{cur == null ? '◉' : '○'}</span>不摆放
+                  </button>
+                  {wares.map((w) => {
+                    const on = cur === w.id;
+                    return (
+                      <button key={w.id} className={`seat-opt${on ? ' active' : ''}`} onClick={() => setSeatWare(slot.id, w.id)}>
+                        <span className="seat-dot">{on ? '◉' : '○'}</span>
+                        <span className="seat-opt-body">
+                          {w.name}
+                          <small>{w.description}</small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {wares.length === 0 && (
+                    <p className="hint" style={{ margin: '4px 0 0' }}>这个位还没有茶具——去茶集市逛逛，或者等谁送你一件。</p>
+                  )}
+                  <button className="seat-restore" onClick={restoreSeatDefault}>↻ 恢复默认茶席</button>
+                </div>
+              );
+            })()}
+          </>
+        )}
 
         {/* L5 玩家侧（PLAYER_SEAT＝蒲团；选了茶后，自己的杯摆在蒲团上） */}
         {phase !== 'setup' && stack && (
@@ -315,23 +409,36 @@ export default function TeaSeatView({ regionId }: { regionId: 'hangzhou' | 'wuyi
             </>
           )}
 
-          {!wareDecided && pickingTeaFor !== 'invite' && (
+          {pickingTeaFor !== 'invite' && (
             <>
-              <p className="hint" style={{ marginBottom: 2 }}>摆上主茶具（也可以先空着）：</p>
-              <div className="dialog-choices">
-                {ownedWares.map((w) => (
-                  <button key={w!.id} className="btn" onClick={() => { setWareId(w!.id); setWareDecided(true); }}>
-                    {w!.name}
-                  </button>
-                ))}
-                <button className="btn" onClick={() => setWareDecided(true)}>先不用茶具</button>
-              </div>
+              {travelMode ? (
+                <>
+                  <p className="hint" style={{ marginBottom: 2 }}>
+                    🧳 旅行茶席已布置——{travelSet?.name}整套上场，走到哪儿都能喝。
+                  </p>
+                  <div className="dialog-choices">
+                    <button className="btn" onClick={() => setSeatMode('normal')}>换回普通茶席</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="hint" style={{ marginBottom: 2 }}>
+                    点一下茶席上的功能位，就能换茶具或收起来：
+                  </p>
+                  {travelSet && (
+                    <div className="dialog-choices" style={{ marginBottom: 4 }}>
+                      <button className="btn" onClick={() => { setSeatMode('travel'); setPickingSlot(null); }}>
+                        🧳 一键布置旅行茶席
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+              <p className="hint" style={{ marginTop: 4, opacity: 0.85 }}>这一席：{seatNote}</p>
             </>
           )}
 
-          {teaDecided && wareDecided && (
-            <button className="btn btn-primary" onClick={enterSeat}>🪑 入席坐下</button>
-          )}
+          <button className="btn btn-primary" onClick={enterSeat}>🪑 入席坐下</button>
         </div>
       )}
     </div>

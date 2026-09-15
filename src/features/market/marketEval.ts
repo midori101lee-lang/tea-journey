@@ -100,29 +100,77 @@ function teaName(id: string): string {
   return TEAS.find((t) => t.id === id)?.name ?? id;
 }
 
-const MARKET_TEAS = ['rougui', 'shuixian', 'dahongpao'];
+// ─────────── 今日行情 · 按茶区（2026-09-14 地区化） ───────────
+// 行情茶与文案随 currentRegion 走：地区 → 地区市场配置 → 本地茶 → 行情话。
+// 未来加福州/潮州：在这里加一条配置即可，UI 与调用方零改动。
+// 铁律：杭州行情绝不出现岩韵/焙火/山场/肉桂等武夷山术语；外地茶（跨区茶商）在非本产区
+// 行情中 demand 缺省 = 1.0 中性——武夷山茶在杭州出售不受杭州行情影响，反之亦然。
+const REGION_MARKETS: Record<string, {
+  teas: string[];      // 本地行情茶（demand 只为它们生成）
+  hotNotes: string[];  // 有热门茶时的行情话（{hot}/{cold} 占位，按 day 确定性抽取）
+  calmNotes: string[]; // 行情平稳时的行情话
+}> = {
+  wuyishan: {
+    teas: ['rougui', 'shuixian', 'dahongpao'],
+    hotNotes: [
+      '山里人今天偏爱{hot}，价好商量些；{cold}则平淡些。',
+      '岩茶市道不错，{hot}香头正旺；{cold}今天问的人少些。',
+      '做青做得好的抢手，{hot}今天格外走俏；{cold}稍慢些。',
+    ],
+    calmNotes: [
+      '来逛的人不少，价钱都还实在。',
+      '焙火香飘满市，各家价钱都实在。',
+      '山场茶陆续下山，行情平稳。',
+    ],
+  },
+  hangzhou: {
+    teas: ['longjing', 'jiuquhongmei'],
+    hotNotes: [
+      '茶客今天偏爱{hot}，价好商量些；{cold}则平淡些。',
+      '春茶市道正好，{hot}清鲜讨喜；{cold}今天安静些。',
+      '西湖边茶市热闹，{hot}更受追捧；{cold}稍平淡些。',
+    ],
+    calmNotes: [
+      '来逛的人不少，价钱都还实在。',
+      '湖边茶市人来人往，各家价钱都公道。',
+      '本地茶客常来坐坐，行情平稳。',
+    ],
+  },
+};
 
-/** 今日行情：轻量、按 day 种子生成。demand 仅 ±10%，只用来算顾客「心理价位」。 */
+/** 茶区种子：让不同茶区在同一天各有自己的行情（不与武夷山共用序列）。 */
+function regionSeed(region: string): number {
+  let h = 0;
+  for (let i = 0; i < region.length; i++) h = (h * 31 + region.charCodeAt(i)) | 0;
+  return Math.abs(h) % 100003;
+}
+
+/** 今日行情：轻量、按 (day, region) 种子生成。demand 仅 ±10%，只用来算顾客「心理价位」。 */
 export interface DayMarket {
   headline: string;
   note: string;
   demand: Record<string, number>;
 }
 
-export function todayMarket(day: number): DayMarket {
-  const rng = mulberry32(day * 9973 + 17);
+export function todayMarket(day: number, regionId: string = 'wuyishan'): DayMarket {
+  const cfg = REGION_MARKETS[regionId] ?? REGION_MARKETS.wuyishan;
+  const rng = mulberry32(day * 9973 + 17 + regionSeed(regionId));
   const demand: Record<string, number> = {};
-  for (const id of MARKET_TEAS) demand[id] = Math.round((0.9 + rng() * 0.2) * 100) / 100;
-  const hot = MARKET_TEAS.reduce((a, b) => (demand[a] >= demand[b] ? a : b));
-  const cold = MARKET_TEAS.reduce((a, b) => (demand[a] <= demand[b] ? a : b));
+  for (const id of cfg.teas) demand[id] = Math.round((0.9 + rng() * 0.2) * 100) / 100;
+  const hot = cfg.teas.reduce((a, b) => (demand[a] >= demand[b] ? a : b));
+  const cold = cfg.teas.reduce((a, b) => (demand[a] <= demand[b] ? a : b));
+  const hotName = teaName(hot);
+  const coldName = teaName(cold);
   let headline: string;
   let note: string;
   if (demand[hot] - demand[cold] < 0.04) {
     headline = '今日行情平稳';
-    note = '来逛的人不少，价钱都还实在。';
+    note = cfg.calmNotes[Math.floor(rng() * cfg.calmNotes.length)];
   } else {
-    headline = `今日「${teaName(hot)}」比较抢手`;
-    note = `山里人今天偏爱${teaName(hot)}，价好商量些；${teaName(cold)}则平淡些。`;
+    headline = `今日「${hotName}」比较抢手`;
+    note = cfg.hotNotes[Math.floor(rng() * cfg.hotNotes.length)]
+      .replace(/\{hot\}/g, hotName)
+      .replace(/\{cold\}/g, coldName);
   }
   return { headline, note, demand };
 }
@@ -169,12 +217,13 @@ function willingnessOf(stack: TeaStack, demand: Record<string, number>, isKnown:
 
 /**
  * 今天来摊上的客人：回头客（见过的 NPC）优先，再补路人；每人分到一锅不同的茶。
- * 完全由 day + 当前背包决定（确定性），不引入新系统。
+ * 完全由 (day, region) + 当前背包决定（确定性），不引入新系统。
+ * 行情随当前茶区走：杭州摊上只按龙井/红梅的需求算价，武夷山茶在此为中性需求。
  */
-export function marketCustomers(player: Player, day: number, stacks: TeaStack[]): MarketCustomer[] {
+export function marketCustomers(player: Player, day: number, stacks: TeaStack[], regionId: string = 'wuyishan'): MarketCustomer[] {
   if (stacks.length === 0) return [];
-  const rng = mulberry32(day * 7919 + 31);
-  const m = todayMarket(day);
+  const rng = mulberry32(day * 7919 + 31 + regionSeed(regionId));
+  const m = todayMarket(day, regionId);
 
   const met = player.metNpcs.filter((id) => id !== 'mystery_tea_person');
   const regulars = met.filter((id) => CUSTOMER_POOL.includes(id) || KNOWN_SET.has(id));

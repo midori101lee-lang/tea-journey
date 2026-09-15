@@ -5,6 +5,7 @@ import { TeaShootSvg, BasketSvg } from '../../../components/art/Art';
 import { TeaGardenScene } from '../../../components/scenes/TeaGardenScene';
 import { NpcPortrait } from '../../../components/art/NpcPortrait';
 import { getTea } from '../../../core/data/teas';
+import { buildPickingLayout, type ShootKind as Kind, type PickMode } from '../../../core/making/pickingLayout';
 
 /**
  * 采茶：同一套「挑对的那一梢」玩法，采摘标准由茶种决定（数据驱动）。
@@ -14,8 +15,7 @@ import { getTea } from '../../../core/data/teas';
  * 产出「这一篓鲜叶」的隐藏品质档 basketQuality，供后续制茶轻量影响容错。
  */
 
-type Kind = 'good' | 'tender' | 'old' | 'bud1' | 'bud2';
-type PickMode = 'open-face' | 'bud';
+// 叶态 / 采摘模式：与 core/making/pickingLayout 共用同一套类型定义（布局生成与这里同源）。
 
 /** 默认引导（武夷山 · 阿秀 · 开面采）：是跟着人学采茶，不是读教程弹窗 */
 const TUTORIAL = [
@@ -91,27 +91,21 @@ export default function PickingStep({
 
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
-  // 茶梢分布：形态差异（开面：good 7 / tender 3 / old 2；嫩芽：bud1 5 / bud2 4 / old 3），位置沿茶垄散开
-  const shoots = useMemo(() => {
-    const kindOf = (i: number): Kind => {
-      const r = i % 12;
-      if (mode === 'bud') {
-        if (r === 3 || r === 5 || r === 11) return 'old';            // 老叶（不要）
-        if (r === 1 || r === 4 || r === 7 || r === 10) return 'bud2'; // 一芽二叶（合适）
-        return 'bud1';                                               // 一芽一叶（最佳）
-      }
-      if (r === 2 || r === 6 || r === 9) return 'tender';
-      if (r === 4 || r === 11) return 'old';
-      return 'good';
-    };
-    return Array.from({ length: attemptCount }, (_, i) => ({
-      id: i,
-      kind: kindOf(i),
-      x: 7 + ((i * 37) % 74),
-      y: 26 + ((i * 53) % 46),
-      rot: ((i * 13) % 12) - 6,
-    }));
-  }, [attemptCount, mode]);
+  // 茶梢分布：每局随机（有界随机 + 位置×叶态解耦）——茶梢只长在这片茶垄内、避开竹篮与采茶人、
+  // 彼此不叠死；叶态洗牌后分配，背位置不再有用。seed 用 useState 惰性初始化 → 本局只生成一次，
+  // 采摘（removed/picked 变化）导致的重渲染不会重排；下一局重新挂载 → 换新布局。
+  // 开发调试：?pickseed=12345 可固定/切换布局（仅 DEV，正式玩家不可见）。
+  const [seed] = useState<number>(() => {
+    if (import.meta.env.DEV && typeof window !== 'undefined') {
+      const q = new URLSearchParams(window.location.search).get('pickseed');
+      if (q && /^\d+$/.test(q)) return Number(q) % 2147483647;
+    }
+    return (Math.random() * 2147483647) | 0;
+  });
+  const shoots = useMemo(
+    () => buildPickingLayout({ seed, count: attemptCount, mode }),
+    [seed, attemptCount, mode],
+  );
 
   // 采满一篓 → 交给阿秀看这一篓
   useEffect(() => {
@@ -199,7 +193,7 @@ export default function PickingStep({
                 top: isFly ? '78%' : `${s.y}%`,
                 transform: isFly
                   ? 'translate(-50%, -50%) scale(0.3)'
-                  : `rotate(${s.rot}deg) translateY(${isDrag ? drag!.dy : 0}px)`,
+                  : `rotate(${s.rot}deg) scale(${s.scale}) translateY(${isDrag ? drag!.dy : 0}px)`,
                 opacity: isFly ? 0 : 1,
                 transition: isFly ? 'all .5s ease-in' : 'none',
               }}

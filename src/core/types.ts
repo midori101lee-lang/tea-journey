@@ -299,7 +299,34 @@ export interface Player {
    *  每日任意一种分享（制茶 / 泡茶 / 茶席）首次成功分享即 +20，之后当天其余分享不再发钱（每日上限 20）。
    *  仅用于分享奖励判定，不参与任何玩法逻辑；旧档经 storage.migrate 自动补 undefined。 */
   shareRewardDate?: string;
+  /** 茶席布置（功能位 → 茶具 id）+ 席面模式。两茶区共用一份「自己的茶具摆放」（人挪席不挪）。
+   *  可选字段：旧档缺省 → 进入茶席时按拥有茶具自动生成默认布置（见 teaseat.defaultSeatArrangement）。
+   *  只存「摆什么」与「普通/旅行」模式，不存坐标——茶席是固定功能位，不是自由装修。 */
+  teaSeat?: TeaSeatSave;
+  /** 制茶操作教程标记（按「操作类型」记，跨茶种共享——学过一次同类操作就不再提示）。
+   *  key = 操作键（见 features/making/StepTutorial.tsx 的 TUT 配置），值为 1。
+   *  可选字段：旧档缺省 → undefined → 所有教程按「未看过」处理，不报错。
+   *  只在玩家真正完成一次操作或主动跳过后标记；中途退出不标记（下次仍会提示）。 */
+  tutorials?: Record<string, 1>;
 }
+
+/** 茶席功能位（固定槽位，非自由摆放）：
+ *  brew=主泡位（盖碗/紫砂壶）、taste=品茗位（单杯）、share=分茶位（公道杯）、
+ *  store=储茶位（茶叶罐）、assist=辅助位（茶盘）。
+ *  稀有旅行茶具不占这五个位：它走 mode='travel' 整套上场（见 teaWares.seatSlot:'travel'）。 */
+export type SeatSlotId = 'brew' | 'taste' | 'share' | 'store' | 'assist';
+
+/** 茶席存档结构：五个功能位各存一件茶具 id 或 null + 席面模式。
+ *  三态语义（2026-09-14 定稿，勿混淆）：
+ *    teaSeat 整体 undefined      = 未配置（旧档/首次）→ 进入茶席时生成默认席；
+ *    slot = null                 = 玩家明确选择「不摆放」→ 任何逻辑不得回填默认茶具；
+ *    slot = wareId               = 玩家选择了具体茶具。
+ *  不用「缺失键」表达玩家主动清空——缺失键会在默认席物化时被回填（这正是历史 bug 根因）。
+ *  mode 缺省='normal'；travel=旅行茶具整套上场（隐藏普通槽位，普通席配置原样保留）。 */
+export type TeaSeatSave = Partial<Record<SeatSlotId, string | null>> & { mode?: 'normal' | 'travel' };
+
+/** 茶具的茶席归属：五个功能位之一，或 'travel'（旅行套组标记——不占普通位，走整套上场）。 */
+export type TeaWareSeatSlot = SeatSlotId | 'travel';
 
 /** 熟练度四档（C1 采用资料库版本）：初学 / 入门 / 熟手 / 老练 */
 export const PROFICIENCY_TIERS = [

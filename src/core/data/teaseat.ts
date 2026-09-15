@@ -1,5 +1,7 @@
-import type { Grade, Player } from '../types';
+import type { Grade, Player, SeatSlotId } from '../types';
 import { regionTeaIds } from './regions';
+import { MARKET_TEA_WARES, GIFT_TEA_WARES, getTeaWare } from './teaWares';
+import type { TeaWare } from './teaWares';
 
 // ─────────── 我的茶席（分茶区配置 · 杭州/武夷山共用一套玩法） ───────────
 // 定位（2026-09-12 明确）：茶席 = 玩家自己的喝茶社交空间（坐下 → 偶遇 → 邀请 → 聊天/回礼），
@@ -235,3 +237,128 @@ export const LINGGU_WUYI_DECLINE_LINES = [
   '「也成。杭州还有不少地方没逛呢。」',
   '「那你再多待几日——等想回去了，再来找我。」',
 ];
+
+// ─────────── 茶席功能位（固定槽位，非自由装修） ───────────
+// 交互 = 点功能位 → 从已拥有且属于该位的茶具里挑一件 → 吸附到固定锚点。
+// 只存「哪个位摆了什么」（Player.teaSeat），不存坐标；锚点由这里统一配置。
+// 分层铁律不变：物品全部在 z3 槽位层，锚点都落在桌面（舞台 y 66%~72.8%）内，不挡按钮/不出安全区。
+// 茶承(assist)视觉宽 52% 横贯桌面（x≈24.5%~76.5%），承托 taste/brew/share 组合（x≈30.75%~71.25%）并留白；
+// 其点击热区(hit)仍是小矩形，绝不随视觉放大而拦截其他功能位。
+
+export interface TeaSeatSlotConfig {
+  id: SeatSlotId;
+  label: string;
+  /** 该位放什么的一句说明（布置面板用）。 */
+  hint: string;
+  /** 茶具视觉锚点（舞台 %，物品底边中心；配合 .teaseat-item 的 translate(-50%,-100%)）。 */
+  left: number;
+  top: number;
+  /** 茶具视觉宽度（舞台宽度 %）——只管「看起来多大」，与点击区域解耦。 */
+  width: number;
+  /** 同层渲染顺序：小者先画（茶承作垫底，其余按从后到前）。 */
+  order: number;
+  /**
+   * 编辑热区（舞台 %，左上角矩形，2026-09-14 与视觉宽度解耦）：
+   * 茶承图可以很大，但点击区只占「功能位中心」——五个热区两两互不重叠
+   * （assist 走前排独立 y 带，绝不拦截 brew/taste 的点击，全空位时也各自可点）。
+   */
+  hit: { left: number; top: number; width: number; height: number };
+}
+
+export const TEA_SEAT_SLOTS: TeaSeatSlotConfig[] = [
+  { id: 'brew',   label: '主泡位', hint: '盖碗、紫砂壶——今天用它泡茶', left: 51.5, top: 70.6, width: 13.5, order: 2,
+    hit: { left: 44, top: 66.5, width: 16, height: 5.8 } },
+  { id: 'taste',  label: '品茗位', hint: '自己喝的那只杯',             left: 35.5, top: 71.6, width: 9.5,  order: 3,
+    hit: { left: 28.5, top: 68.5, width: 14, height: 5.5 } },
+  { id: 'share',  label: '分茶位', hint: '公道杯——茶汤分得匀',        left: 66.5, top: 71.6, width: 9.5,  order: 3,
+    hit: { left: 61.5, top: 68.5, width: 13.5, height: 5.5 } },
+  { id: 'store',  label: '储茶位', hint: '茶叶罐——装今天喝的茶',      left: 14,   top: 68.8, width: 11,   order: 2,
+    hit: { left: 7.5, top: 65.5, width: 15, height: 5 } },
+  { id: 'assist', label: '辅助位', hint: '茶承——给茶席垫个底',        left: 50.5, top: 74.4, width: 50,   order: 1,
+    hit: { left: 43, top: 72.5, width: 17.5, height: 4 } },
+];
+
+/** 旅行套组（稀有旅行茶具）的席面锚点：整套一张图居中上场——宽扁资源（1100×796）单独定尺寸，
+ *  不套用方形茶具的比例逻辑，也绝不占普通主泡位（走 mode='travel'，见 types.TeaSeatSave）。 */
+export const TEA_SEAT_TRAVEL_ANCHOR = { left: 50, top: 70.8, width: 26 };
+
+export const TEA_SEAT_SLOT_BY_ID: Record<SeatSlotId, TeaSeatSlotConfig> =
+  Object.fromEntries(TEA_SEAT_SLOTS.map((s) => [s.id, s])) as Record<SeatSlotId, TeaSeatSlotConfig>;
+
+/** 全部茶具（集市 + 剧情赠礼），固定顺序（=商品上架顺序），保证默认布置确定性。 */
+const ALL_WARES: TeaWare[] = [...MARKET_TEA_WARES, ...GIFT_TEA_WARES];
+
+/** 某功能位下玩家可用的茶具（已拥有 + seatSlot 匹配，按固定顺序；旅行套组不在任何普通位）。 */
+export function waresForSeatSlot(owned: string[], slot: SeatSlotId): TeaWare[] {
+  return ALL_WARES.filter((w) => w.seatSlot === slot && owned.includes(w.id));
+}
+
+/** 玩家是否拥有旅行套组（稀有旅行茶具；seatSlot='travel' 是标记，不是可摆的普通位）。 */
+export function ownedTravelSet(owned: string[]): TeaWare | undefined {
+  return ALL_WARES.find((w) => w.seatSlot === 'travel' && owned.includes(w.id));
+}
+
+/** 当前是否处于旅行茶席模式：存档 mode='travel' 且确实拥有套组（防旧档/异常态）。 */
+export function seatTravelMode(save: Player['teaSeat'], owned: string[]): boolean {
+  return save?.mode === 'travel' && !!ownedTravelSet(owned);
+}
+
+/**
+ * 默认茶席布置（旧玩家第一次进新茶席 / 从未布置过时自动生成）：
+ * 每个位取「该位下第一件已拥有的茶具」（按上架顺序 → 主泡位默认白瓷盖碗、品茗位默认白瓷品茗杯）。
+ * 纯函数、确定性：同一份收藏永远生成同一张茶席，刷新不走样。
+ */
+export function defaultSeatArrangement(owned: string[]): Partial<Record<SeatSlotId, string>> {
+  const arr: Partial<Record<SeatSlotId, string>> = {};
+  for (const slot of TEA_SEAT_SLOTS) {
+    const w = waresForSeatSlot(owned, slot.id)[0];
+    if (w) arr[slot.id] = w.id;
+  }
+  return arr;
+}
+
+/**
+ * 消毒已保存的布置（teaSeat 存在时走这里——尊重玩家的每一个 slot 决定）：
+ *   slot = null            → 明确不摆放，原样保留（绝不回填默认茶具）；
+ *   slot = 合法 wareId     → 保留；
+ *   slot = 不存在的 wareId → 丢弃该位（脏数据清理，不回填默认）；
+ *   slot 缺失              → 该位为空（不整席回退默认席）。
+ * 默认席只在 teaSeat 整体 undefined（旧档/首次）时由 defaultSeatArrangement 生成。
+ */
+export function sanitizeSeatArrangement(
+  arr: Partial<Record<SeatSlotId, string | null>> | undefined,
+  owned: string[],
+): Partial<Record<SeatSlotId, string | null>> {
+  const out: Partial<Record<SeatSlotId, string | null>> = {};
+  if (!arr) return out;
+  for (const slot of TEA_SEAT_SLOTS) {
+    const id = arr[slot.id];
+    if (id === null) { out[slot.id] = null; continue; } // 明确不摆放：合法状态，原样保留
+    if (!id) continue;                                  // 未配置：空位
+    const w = getTeaWare(id);
+    if (w && w.seatSlot === slot.id && owned.includes(id)) out[slot.id] = id;
+  }
+  return out;
+}
+
+/**
+ * 茶席搭配反馈（纯文字，无评分无数值，不影响任何品质/茶钱）：
+ * 旅行席一句；否则按「今天喝的茶 × 主泡/品茗茶具」给一句对味观感；命中不了就按摆件数量给档位句。
+ */
+export function seatArrangementNote(
+  arr: Partial<Record<SeatSlotId, string | null>>,
+  teaCategory?: string,
+  travelMode?: boolean,
+): string {
+  if (travelMode) return '带上这一套，走到哪儿都能喝上一盏茶——轻装出行，茶席随身。';
+  const ware = (s: SeatSlotId) => (arr[s] ? getTeaWare(arr[s]!) : undefined);
+  // 茶与具的对味（只聊感受，不给加成）
+  if (teaCategory === 'green' && arr.taste === 'hz-glass-cup') return '玻璃杯配绿茶——看得见叶子在水里舒展。';
+  if (teaCategory === 'yancha' && ware('brew')?.type === 'pot') return '紫砂壶伺候岩茶，稳。';
+  if (teaCategory === 'hongcha' && ware('brew')?.type === 'gaiwan') return '盖碗泡红茶，正好看那口红亮的汤色。';
+  const filled = TEA_SEAT_SLOTS.filter((s) => arr[s.id]).length;
+  if (filled >= 4) return '茶具齐整——像样的一方茶席。';
+  if (filled >= 3) return '有模有样，坐下来慢慢喝。';
+  if (filled >= 1) return '素雅清简，一壶一杯也自在。';
+  return '席面还空着——点上面的功能位，先摆上一件。';
+}

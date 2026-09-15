@@ -344,7 +344,7 @@ export function generateStalls(
   flags?: Record<string, boolean | number>,
 ): Stall[] {
   const rng = mulberry32(day * 6151 + 7 + regionSeed(region));
-  const m = todayMarket(day);
+  const m = todayMarket(day, region); // 行情随茶区走：杭州摊按龙井/红梅需求调价
 
   const ownerPool = STALL_OWNERS_BY_REGION[region] ?? STALL_OWNERS_BY_REGION.wuyishan;
   const ownerCount = 3 + Math.floor(rng() * 3); // 3..5

@@ -13,6 +13,7 @@
 export type TeaWareRarity = 'common' | 'intermediate' | 'advanced' | 'rare';
 /** 茶具形态：决定是否能作为泡茶容器（盖碗/壶可泡；杯/罐/套具仅收藏）。 */
 export type TeaWareKind = 'gaiwan' | 'pot' | 'cup' | 'caddy' | 'set' | 'tray';
+import type { TeaWareSeatSlot } from '../types';
 
 export interface TeaWare {
   id: string;
@@ -29,6 +30,8 @@ export interface TeaWare {
   description: string;
   /** public 下相对路径，经 import.meta.env.BASE_URL 解析（注意：精选紫砂壶实际素材文件名为「特选紫砂壶.webp」）。 */
   asset: string;
+  /** 茶席归属（我的茶席固定槽位，或 'travel'=旅行套组标记）。缺省=不上茶席。 */
+  seatSlot?: TeaWareSeatSlot;
 }
 
 /** 稀有度中文标签（前端轻量展示：卡片边框 / 小标签 / 价格，不做装备面板）。 */
@@ -43,25 +46,35 @@ export const RARITY_LABEL: Record<TeaWareRarity, string> = {
  *  usableForBrew：盖碗类(白瓷/青瓷)与紫砂壶(入门/特选)可进入泡茶；杯/罐/旅行具为收藏展示。 */
 export const MARKET_TEA_WARES: TeaWare[] = [
   { id: 'white-teacup', name: '白瓷品茗杯', price: 10, rarity: 'common', type: 'cup', usableForBrew: false,
-    description: '简单的一只杯子，喝茶从这里开始。', asset: 'assets/teaware/白瓷品茗杯.webp' },
+    description: '简单的一只杯子，喝茶从这里开始。', asset: 'assets/teaware/白瓷品茗杯.webp',
+    seatSlot: 'taste' },
   { id: 'white-gaiwan', name: '白瓷盖碗', price: 18, rarity: 'common', type: 'gaiwan', usableForBrew: true,
-    description: '一只白瓷盖碗，够你慢慢把茶喝明白。', asset: 'assets/teaware/白瓷盖碗.webp' },
-  { id: 'bamboo-teaware', name: '竹木茶盘', price: 35, rarity: 'common', type: 'tray', usableForBrew: false,
-    description: '朴素的一方茶盘，泡茶时把盖碗、公道杯都摆在上面。', asset: 'assets/teaware/竹木茶盘.webp' },
+    description: '一只白瓷盖碗，够你慢慢把茶喝明白。', asset: 'assets/teaware/白瓷盖碗.webp',
+    seatSlot: 'brew' },
+  { id: 'bamboo-teaware', name: '竹木茶承', price: 35, rarity: 'common', type: 'tray', usableForBrew: false,
+    description: '一方竹木茶承，把盖碗、公道杯都稳稳承在上面。', asset: 'assets/teaware/竹木茶盘.webp',
+    seatSlot: 'assist' },
   { id: 'blue-white-tea-caddy', name: '青花瓷茶叶罐', price: 45, rarity: 'common', type: 'caddy', usableForBrew: false,
-    description: '装一点自己喜欢的茶，也很好看。', asset: 'assets/teaware/青花瓷茶叶罐.webp' },
+    description: '装一点自己喜欢的茶，也很好看。', asset: 'assets/teaware/青花瓷茶叶罐.webp',
+    seatSlot: 'store' },
   { id: 'celadon-gaiwan', name: '青瓷盖碗', price: 55, rarity: 'intermediate', type: 'gaiwan', usableForBrew: true,
-    description: '颜色温润，摆在茶桌上也很好看。', asset: 'assets/teaware/青瓷盖碗.webp' },
+    description: '颜色温润，摆在茶桌上也很好看。', asset: 'assets/teaware/青瓷盖碗.webp',
+    seatSlot: 'brew' },
   { id: 'blue-gray-tea-caddy', name: '青灰色茶叶罐', price: 60, rarity: 'intermediate', type: 'caddy', usableForBrew: false,
-    description: '朴素安静，适合慢慢收藏。', asset: 'assets/teaware/青灰色茶叶罐.webp' },
+    description: '朴素安静，适合慢慢收藏。', asset: 'assets/teaware/青灰色茶叶罐.webp',
+    seatSlot: 'store' },
   { id: 'fairness-cup', name: '公道杯', price: 70, rarity: 'intermediate', type: 'cup', usableForBrew: false,
-    description: '茶汤分得匀一些，也方便慢慢喝。', asset: 'assets/teaware/公道杯.webp' },
+    description: '茶汤分得匀一些，也方便慢慢喝。', asset: 'assets/teaware/公道杯.webp',
+    seatSlot: 'share' },
   { id: 'beginner-zisha-pot', name: '入门紫砂壶', price: 120, rarity: 'advanced', type: 'pot', usableForBrew: true,
-    description: '终于有了一把属于自己的小壶。', asset: 'assets/teaware/入门紫砂壶.webp' },
+    description: '终于有了一把属于自己的小壶。', asset: 'assets/teaware/入门紫砂壶.webp',
+    seatSlot: 'brew' },
   { id: 'selected-zisha-pot', name: '精选紫砂壶', price: 180, rarity: 'advanced', type: 'pot', usableForBrew: true,
-    description: '做工更讲究一些，值得好好收着。', asset: 'assets/teaware/特选紫砂壶.webp' },
+    description: '做工更讲究一些，值得好好收着。', asset: 'assets/teaware/特选紫砂壶.webp',
+    seatSlot: 'brew' },
   { id: 'rare-travel-teaware', name: '稀有旅行茶具', price: 320, rarity: 'rare', type: 'set', usableForBrew: false,
-    description: '装进包里，走到哪儿都能喝上一壶。', asset: 'assets/teaware/稀有旅行茶具.webp' },
+    description: '装进包里，走到哪儿都能喝上一壶。', asset: 'assets/teaware/稀有旅行茶具.webp',
+    seatSlot: 'travel' },
 ];
 
 export const getTeaWare = (id: string): TeaWare | undefined =>
@@ -83,6 +96,7 @@ export const GIFT_TEA_WARES: TeaWare[] = [
     usableForBrew: false,
     description: '玲姨送的玻璃杯。泡上一杯龙井，看着茶叶在水里慢慢舒展开，也算是把杭州的春天装进杯子里了。',
     asset: 'assets/teaware/杭州玻璃杯.webp',
+    seatSlot: 'taste',
   },
 ];
 

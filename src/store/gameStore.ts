@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import type { Player, ProcessingResult, Difficulty, BrewOutcome, Grade, TeaStack, FaultTag } from '../core/types';
+import type { Player, ProcessingResult, Difficulty, BrewOutcome, Grade, TeaStack, FaultTag, SeatSlotId, TeaSeatSave } from '../core/types';
 import { regionProficiency } from '../core/types';
 import { loadSave, persist, defaultPlayer, archiveCurrentSave, wipeActiveSave } from '../core/storage/storage';
 import { MARKET_REQUIRED_TEAS, regionLocationScene } from '../core/data/regions';
 import { getTea, isCraftable } from '../core/data/teas';
 import { getTeaWare } from '../core/data/teaWares';
+import { ownedTravelSet, defaultSeatArrangement } from '../core/data/teaseat';
 import { getZhouBoAfterTeaAdvice } from '../core/data/zhouBoAdvice';
 import type { RolledEncounter } from '../features/encounter/encounterEngine';
 import type { ZhouBoAdvice } from '../core/data/zhouBoAdvice';
@@ -186,6 +187,14 @@ interface GameStore {
   buyTeaWare: (id: string) => boolean;
   /** 剧情赠礼茶具：免费入茶具收藏（teaWareInventory），不扣茶钱、不进茶集市。已拥有返回 false（不重复入收藏）。 */
   giveTeaWare: (id: string) => boolean;
+  /** 茶席布置：把某件已拥有茶具放上/取下某个功能位（校验位次匹配）。不扣任何资源，只改 Player.teaSeat。 */
+  setSeatWare: (slot: SeatSlotId, wareId: string | null) => void;
+  /** 茶席模式：normal=普通功能位茶席；travel=旅行套组整套上场（需已拥有稀有旅行茶具）。 */
+  setSeatMode: (mode: 'normal' | 'travel') => void;
+  /** 恢复默认茶席：五个功能位回到 defaultSeatArrangement（保留 normal/travel 模式），立即持久化。 */
+  restoreSeatDefault: () => void;
+  /** 标记一个制茶操作教程为「已学会」（完成一次操作或主动跳过时调用；中途退出不调）。 */
+  markTutorial: (op: string) => void;
   reset: () => void;
 }
 
@@ -621,6 +630,53 @@ export const useGame = create<GameStore>((set, get) => ({
     persist(next);
     set({ player: next });
     return true;
+  },
+
+  setSeatWare: (slot, wareId) => {
+    const { player } = get();
+    // 基底：teaSeat 未配置（旧档/首次写入）→ 物化「当前生效的默认席」；
+    // 已配置 → 原样继承（null/wareId 都是玩家的明确决定，绝不用默认席回填——历史 bug 根因）。
+    const nextSeat: TeaSeatSave = player.teaSeat !== undefined
+      ? { ...player.teaSeat }
+      : { ...defaultSeatArrangement(player.teaWareInventory) };
+    if (wareId === null) {
+      nextSeat[slot] = null; // 明确不摆放：存 null（不是删键——缺失键会被默认席物化回填）
+    } else {
+      const ware = getTeaWare(wareId);
+      // 校验：茶具存在、已拥有、位次匹配——脏数据/越位写入直接忽略，不改状态
+      if (!ware || ware.seatSlot !== slot || !player.teaWareInventory.includes(wareId)) return;
+      nextSeat[slot] = wareId;
+    }
+    const next = { ...player, teaSeat: nextSeat };
+    persist(next);
+    set({ player: next });
+  },
+
+  /** 恢复默认茶席：五个功能位回到 defaultSeatArrangement（保留当前 normal/travel 模式），立即持久化。 */
+  restoreSeatDefault: () => {
+    const { player } = get();
+    const next = { ...player, teaSeat: { ...defaultSeatArrangement(player.teaWareInventory), mode: player.teaSeat?.mode } };
+    persist(next);
+    set({ player: next });
+  },
+
+  setSeatMode: (mode) => {
+    const { player } = get();
+    // 旅行席前提：确实拥有旅行套组；否则忽略（不产生「有 mode 没茶具」的空席）
+    if (mode === 'travel' && !ownedTravelSet(player.teaWareInventory)) return;
+    const next = { ...player, teaSeat: { ...(player.teaSeat ?? {}), mode } };
+    persist(next);
+    set({ player: next });
+  },
+
+  markTutorial: (op) => {
+    const { player } = get();
+    if (player.tutorials?.[op]) return; // 已标记：不重复写盘
+    const tutorials: Record<string, 1> = { ...(player.tutorials ?? {}) };
+    tutorials[op] = 1;
+    const next = { ...player, tutorials };
+    persist(next);
+    set({ player: next });
   },
 
   reset: () => {

@@ -1241,3 +1241,139 @@ body {
 }
 .share-close:hover { text-decoration: underline; }
 
+
+/* ─────────── 制茶操作教程（轻量手势演示；纯 transform/opacity，Chrome 61 基线） ─────────── */
+/* 演示点容器：悬浮在环节卡片内配置位置；整体循环 2 次后淡成浅影（tut-demo-fade forwards） */
+.tut-demo { position: absolute; width: 0; height: 0; animation: tut-demo-fade 0.6s ease 3.4s forwards; }
+@keyframes tut-demo-fade { to { opacity: 0.22; } }
+
+/* 幽灵手指：淡墨圆点 + 手绘光环（所有动画共用） */
+.tut-finger {
+  position: absolute; left: -11px; top: -11px; width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(246, 240, 226, 0.92); border: 1.6px solid rgba(122, 98, 66, 0.75);
+  box-shadow: 0 0 0 5px rgba(122, 98, 66, 0.10), 0 2px 4px rgba(80, 60, 40, 0.22);
+}
+.tut-finger::after {
+  content: ''; position: absolute; inset: 6px; border-radius: 50%;
+  background: rgba(122, 98, 66, 0.35);
+}
+
+/* 画圈摇青/揉捻：手指沿圆弧轨道绕圈（轨道用淡墨虚线示意），约 1.5s 一圈 ×2 */
+.tut-orbit { position: absolute; left: -34px; top: -34px; width: 68px; height: 68px; animation: tut-orbit-spin 1.5s linear 2; }
+.tut-orbit::before {
+  content: ''; position: absolute; inset: 4px; border-radius: 50%;
+  border: 1.6px dashed rgba(122, 98, 66, 0.45);
+}
+.tut-orbit .tut-finger { left: auto; top: auto; right: -11px; top: 23px; }
+@keyframes tut-orbit-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* 晒⇄晾切换：两个手指点交替轻按（错相） */
+.tut-toggle-a { animation: tut-tap-press 1.4s ease-in-out 2; margin-left: -84px; }
+.tut-toggle-b { animation: tut-tap-press 1.4s ease-in-out 2; animation-delay: 0.7s; margin-left: 62px; }
+@keyframes tut-tap-press {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.25; }
+  18% { transform: translateY(4px) scale(0.86); opacity: 1; }
+  40% { transform: translateY(0) scale(1); opacity: 0.25; }
+}
+
+/* 看准指示点一下：手指沿横向轨道来回走（与焙火/烘干指针同速感），中心一枚淡涟漪 */
+.tut-track {
+  position: absolute; left: -78px; top: -2px; width: 156px; height: 4px; border-radius: 2px;
+  background: linear-gradient(to right, rgba(122,98,66,0), rgba(122,98,66,0.35), rgba(122,98,66,0));
+}
+.tut-tap-move { animation: tut-tap-move 1.7s ease-in-out 2; }
+@keyframes tut-tap-move {
+  0% { transform: translateX(-56px); }
+  45% { transform: translateX(0); }
+  55% { transform: translateX(0) scale(0.84); }
+  100% { transform: translateX(56px); }
+}
+.tut-ripple {
+  position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid rgba(110, 140, 106, 0.8); opacity: 0;
+  animation: tut-ripple 1.7s ease-out 2;
+}
+@keyframes tut-ripple {
+  0%, 40% { opacity: 0; transform: scale(0.5); }
+  52% { opacity: 0.9; transform: scale(0.7); }
+  80%, 100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* 按住蓄力→松手：手指原地充能膨胀再回落 */
+.tut-press-dot { animation: tut-press 1.5s ease-in-out 2; }
+@keyframes tut-press {
+  0% { transform: scale(0.85); }
+  55% { transform: scale(1.25); box-shadow: 0 0 0 9px rgba(110, 140, 106, 0.18), 0 2px 4px rgba(80, 60, 40, 0.22); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(0.85); }
+}
+
+/* 理条节拍：外环收缩（与游戏内节拍环同构） */
+.tut-ring {
+  position: absolute; left: -20px; top: -20px; width: 40px; height: 40px; border-radius: 50%;
+  border: 2.5px solid rgba(110, 140, 106, 0.85);
+  animation: tut-ring 1.4s ease-in 2;
+}
+@keyframes tut-ring {
+  0% { transform: scale(1.5); opacity: 0; }
+  30% { opacity: 0.95; }
+  75% { transform: scale(0.7); opacity: 0.95; }
+  100% { transform: scale(0.6); opacity: 0; }
+}
+
+/* 观察类（萎凋/发酵）：叶面柔光脉动，无手势——示意「看这里」而非「动这里」 */
+.tut-glow {
+  position: absolute; left: -56px; top: -26px; width: 112px; height: 52px; border-radius: 14px;
+  background: radial-gradient(ellipse at center, rgba(246, 240, 214, 0.5), rgba(246, 240, 214, 0) 70%);
+  border: 1.4px dashed rgba(122, 98, 66, 0.4);
+  animation: tut-glow 1.8s ease-in-out 2;
+}
+@keyframes tut-glow {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+/* ─────────── 茶席布置 · 席面热点 + 侧边茶具栏（所见即所得编辑，仅 setup 阶段渲染） ─────────── */
+/* 功能位热点：透明点击区覆盖锚点附近的桌面带；选中时淡墨虚线圈出正在编辑的位置 */
+.seat-slot-hit {
+  position: absolute;
+  background: transparent; border: none; padding: 0; cursor: pointer; z-index: 5;
+  border-radius: 12px;
+}
+.seat-slot-hit.active { border: 1.5px dashed rgba(122, 98, 66, 0.65); background: rgba(252, 247, 235, 0.14); }
+.seat-slot-tag {
+  position: absolute; left: 50%; bottom: -1px; transform: translateX(-50%);
+  font-size: 10px; line-height: 1.5; white-space: nowrap; color: rgba(74, 58, 42, 0.62);
+  background: rgba(252, 247, 235, 0.72); border-radius: 999px; padding: 0 7px;
+  pointer-events: none;
+}
+.seat-slot-hit.active .seat-slot-tag { color: rgba(74, 58, 42, 0.95); font-weight: 600; background: rgba(252, 247, 235, 0.95); }
+
+/* 侧边茶具栏：悬浮在舞台右侧，淡纸底 + 淡墨描边；过长内部滚动，不出安全区 */
+.seat-editor {
+  position: absolute; right: 1.5%; top: 22%; width: 41%; max-height: 56%;
+  overflow-y: auto; z-index: 6;
+  background: rgba(252, 247, 235, 0.96); border: 1px solid rgba(200, 162, 75, 0.55);
+  border-radius: 12px; padding: 10px 10px 8px;
+  box-shadow: 0 4px 14px rgba(80, 60, 40, 0.18);
+  display: flex; flex-direction: column; gap: 5px;
+}
+.seat-editor-head { display: flex; align-items: center; justify-content: space-between; }
+.seat-editor-close {
+  border: none; background: none; font-size: 16px; line-height: 1; cursor: pointer;
+  color: rgba(74, 58, 42, 0.6); padding: 2px 6px;
+}
+.seat-opt {
+  display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
+  background: rgba(255, 252, 244, 0.9); border: 1px solid rgba(200, 162, 75, 0.4);
+  border-radius: 9px; padding: 6px 9px; cursor: pointer; font-size: 13px; color: var(--ink);
+}
+.seat-opt .seat-opt-body { display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+.seat-opt .seat-opt-body small { font-size: 10.5px; color: rgba(74, 58, 42, 0.62); }
+.seat-opt.active { border-color: rgba(110, 140, 106, 0.85); background: rgba(238, 243, 230, 0.95); }
+.seat-dot { flex: none; color: rgba(110, 140, 106, 0.95); font-size: 13px; }
+.seat-restore {
+  margin-top: 2px; border: 1px dashed rgba(200, 162, 75, 0.6); background: none;
+  border-radius: 9px; padding: 5px 8px; cursor: pointer; font-size: 12px;
+  color: rgba(74, 58, 42, 0.78);
+}

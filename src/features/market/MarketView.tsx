@@ -91,7 +91,7 @@ export default function MarketView() {
   // 旅途赠礼（老陈送的武夷山茶礼等）不进普通出售列表：仍可正常泡饮，但保留「我的旅途」身份、不折成茶钱。
   const stacks = player.inventory.filter((s) => s.source !== 'gift');
   const giftCount = player.inventory.filter((s) => s.source === 'gift').reduce((n, s) => n + s.count, 0);
-  const market = todayMarket(player.day);
+  const market = todayMarket(player.day, player.currentRegion);
   const priceOf = (s: TeaStack) => prices[s.id] ?? suggestedPrice(s);
   const setPrice = (id: string, delta: number) => {
     const base = player.inventory.find((s) => s.id === id);
@@ -120,7 +120,7 @@ export default function MarketView() {
   const openStall = () => {
     const selected = stacks.filter((s) => (sellQty[s.id] ?? 0) > 0);
     if (selected.length === 0) { setResults([]); return; }
-    const customers = marketCustomers(player, player.day, selected);
+    const customers = marketCustomers(player, player.day, selected, player.currentRegion);
     const log: ResultLine[] = [];
     selected.forEach((stack) => {
       const c = customers.find((x) => x.stackId === stack.id);

@@ -17,6 +17,7 @@ import FermentationStep from './steps/FermentationStep';
 import DryingStep from './steps/DryingStep';
 import FixationStep from './steps/FixationStep';
 import ShapingStep from './steps/ShapingStep';
+import StepTutorial, { STEP_TUTORIALS } from './StepTutorial';
 
 /** 难度只通过 params 的 casual 档覆盖实现，代码里没有 if (isXhs) */
 function resolveParams(step: StepId, teaId: string, difficulty: Difficulty, bq?: BasketQuality): StepParams {
@@ -71,7 +72,7 @@ const GU_SHU_HINTS: Partial<Record<'green' | 'hongcha', Partial<Record<StepId, s
  * 岩茶（倒青/做青/炒揉/焙火）与红茶（萎凋/揉捻/发酵/烘干）共用同一套外壳。
  */
 export default function MakingFlow() {
-  const { difficulty, currentTeaId, player, finishMaking, unlockComic, setFlag } = useGame();
+  const { difficulty, currentTeaId, player, finishMaking, unlockComic, setFlag, markTutorial } = useGame();
   const teaId = currentTeaId ?? 'rougui';
   const tea = getTea(teaId);
   const recipe = getRecipe(teaId);
@@ -112,6 +113,10 @@ export default function MakingFlow() {
   function handle(o: StepOutcome) {
     const next = [...outcomes, o];
     setOutcomes(next);
+    // 环节完成 = 该操作真正做过一次 → 标记教程「已学会」（采茶有自己的 NPC 教学 flag，不在此列）。
+    // 只标记不弹提示，不打断结算流程；中途退出的环节不会走到这里，下次仍会提示。
+    const tutOp = STEP_TUTORIALS[step]?.op;
+    if (tutOp) markTutorial(tutOp);
     if (o.basketQuality) setBasketQuality(o.basketQuality); // 这一篓鲜叶的品质，后续工序消费
     // 知识漫画按茶区解锁：采茶的知识卡（武夷山风土）不给杭州茶弹——龙井/九曲红梅采茶不串武夷山知识。
     const comicId = STEP_META[step].knowledgeComicId;
@@ -139,7 +144,7 @@ export default function MakingFlow() {
           <span style={{ color: 'var(--ink-3)' }}>郭叔：</span>「{guHint}」
         </p>
       )}
-      <div>
+      <div style={{ position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span className="h-serif">{meta.gameName}</span>
         <span className="hint">{index + 1} / {steps.length}</span>
@@ -188,6 +193,14 @@ export default function MakingFlow() {
       <div className="hint" style={{ marginTop: 14, opacity: 0.7 }}>
         {stepNote}
       </div>
+      {/* 轻量操作教程：首次进入某环节时显示（采茶已有 NPC 教学，不重复）；完成或跳过后不再出现 */}
+      {step !== 'picking' && (
+        <StepTutorial
+          step={step}
+          seen={!!player.tutorials?.[STEP_TUTORIALS[step]?.op ?? '']}
+          onSkip={() => { const op = STEP_TUTORIALS[step]?.op; if (op) markTutorial(op); }}
+        />
+      )}
       </div>
     </>
   );

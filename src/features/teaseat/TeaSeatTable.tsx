@@ -5,14 +5,14 @@
  *
  * 层级约定（与 TeaSeatView 配合）：
  *   背景(z0) → NPC(z1) → 茶桌(z2，遮住 NPC 下半身) → 茶具槽位(z3) → 玩家侧/前景(z4)。
- * 组件占位：舞台 left 6% / top 63% / width 88% / height 16.5%（≈舞台宽度的 88%，不铺满、不挡湖景主体）。
- * viewBox 495×165 与该容器比例一致，避免拉伸变形。
+ * 占位（2026-09-14 桌面放大）：left 2% / top 62.8% / width 96% / height 18%
+ *   （96%×941≈903px 宽，按 495×165 等比 → 高 18%，无拉伸；桌面可用带 y≈66~73.2%）。
  */
 export default function TeaSeatTable() {
   return (
     <svg
       viewBox="0 0 495 165"
-      style={{ position: 'absolute', left: '6%', top: '63%', width: '88%', height: '16.5%', zIndex: 2 }}
+      style={{ position: 'absolute', left: '2%', top: '62.8%', width: '96%', height: '18%', zIndex: 2 }}
       aria-hidden
     >
       {/* 落地阴影 */}
